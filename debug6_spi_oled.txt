@@ -1,0 +1,275 @@
+
+-------------oled 引脚 --------------------------
+
+RST         --     PD0
+D/C         --     PD1
+CS           --     PB9
+SCK         --     PA11
+MO         --     PD8
+//MI          --     PA10    //这个脚对oled没有用，可去掉
+
+cs   --   PB9 
+dc   --   PD1
+rst   --   PD0
+
+
+-------------------------------SPI1初始化-------------------------------------
+
+main()
+
+       SYS_Init();           //设置spi引脚，设置oled引脚
+       B_SPI_Init();        //设置spi模式， 设置spi频率1M
+
+
+----------------------------SPI1写数据-------------------------------------------------
+
+main()
+
+    uint8_t start[5] = { 'S','T','A','R','T' };
+
+    B_SPI_Init();    //spi初始化
+    initLcd();        //oled置初始值
+
+    //写命令
+    begin()
+       writeCommand(0x72);                // RGB Color   //发送命令到oled
+       ......     (略)
+
+    clear_screen();
+    delay(5);
+    clear_screen();
+    delay(5);
+
+   //写数据到oled显示
+   lcd_msg(start,0,5,WHITE); 
+
+
+
+===========================================================================
+
+RST         --     PD0
+D/C         --     PD1      // 0 for command, 1 for data 
+CS           --     PB9
+SCK         --     PA11
+MO         --     PD8
+//MI          --     PA10    //这个脚对oled没有用，可去掉
+
+cs   --   PB9 
+dc   --   PD1
+rst   --   PD0
+
+
+void SYS_Init(void)
+{
+         ......              //设置时钟等     （略）
+ 
+       GPIO_SetMode(PD, BIT0, GPIO_PMD_OUTPUT);       //rst
+       GPIO_SetMode(PD, BIT1, GPIO_PMD_OUTPUT);       //d/c
+       GPIO_SetMode(PB, BIT9, GPIO_PMD_OUTPUT);       //cs
+
+       cs = 1;   
+       dc = 0;     //0 for command
+       rst = 1;
+ 
+      //设置PA11,PA10,PD8为spi引脚
+      SYS->GPA_MFP = SYS_GPA_MFP_PA11_SPI1_CLK | SYS_GPA_MFP_PA10_SPI1_MISO0;
+      SYS->GPD_MFP = SYS_GPD_MFP_PD8_SPI1_MOSI0;
+      SYS->ALT_MFP = SYS_ALT_MFP_PA11_SPI1_CLK | SYS_ALT_MFP_PA10_SPI1_MISO0 | SYS_ALT_MFP_PD8_SPI1_MOSI0;
+
+
+     // ----------------  my add 考虑 ----------------------- 
+     GPIO_SPI1_SS0_PB9();            // 设置pb9 做spi引脚 （ss0）
+
+      .......                  //设置timer1  （略）
+
+}
+
+
+---
+
+void B_SPI_Init(void)
+
+    SPI1->CNTRL = 0x05003840;
+                           //0x05:  CNTRL.26=1, CNTRL.24=1     --    清发送标志，清接收标志
+                           //0x00:  CNTRL.19=0, CNTRL.18=0     --    禁止字节重排序，主模式
+                           //0x38:  CNTRL.15-12=3, CNTRL.11=1，CNTRL.10=0     --     休眠间隔设为第3组，空闲clk为高电平，MSB优先
+                           //0x40:  CNTRL.7-3=01000, CNTRL.2=0，CNTRL.1=0     --     传送位数为8， 上升沿发送，上升沿接收   （这里2个上升沿好像有点混淆） 
+  
+    u32BusClock = 1000000;  //1M
+
+
+   //-------------下面是设置spi的频率为1M，可忽略 -------------------------------- 
+        ......   (略)
+ 
+
+   //-------------设置spi的频率为1M  --------end------------------------
+
+
+   // ----------------  my add  考虑-----------------------
+
+   SPI1_SSR.2=0, SPI1_SSR.3=0     //--   片选信号为低电平，  手动片选
+   SPI1_SSR.0=1                          //使能片选CS0 
+
+
+-----------------------------------------------------------------------------------------------------
+
+void writeCommand(uint8_t c)  
+
+    dc = 0;   //0 for command 
+    sendpacket(c);
+ 
+---
+
+void sendpacket( c)
+
+    cs = 0;    
+    SPI1->TX[0] = c;
+    SPI1->CNTRL |= 1;
+    while((SPI1->CNTRL & 1) == 1);
+    cs = 1;    
+ 
+
+---参考---
+
+void spiSendWord(u32 ulData, u32 ucLength)
+  
+    //SPI_SET_TX_BIT_LEN(SPI1, ucLength);   
+
+    SPI_WRITE_TX0(SPI1, ulData);                           
+    SPI_SET_GO(SPI1); 
+    while(SPI_IS_BUSY(SPI1) != 0); 
+
+
+
+
+-------------------------------------------------------------------------
+
+void initLcd(void)
+
+    _width    = WIDTH;     
+    _height   = HEIGHT;
+    rotation  = 0;
+
+    cursor_y  = cursor_x  = 0;
+    textsize  = 1;
+    textcolor = textbgcolor = 0xFFFF;
+    wrap      = 1;
+
+    _cp437    = 0;        //没什么用
+
+    gfxFont   = 0;
+
+---
+
+void lcd_msg( msg,  row,   len,  color )
+    
+     for(i=0;(i<len);i++)
+        drawChar(i*6,row,msg[i],color,BLACK,1);    
+
+---
+
+
+void drawChar(  x,   y,   c,   color,   bg,   size) 
+ 
+      uint8_t line; 
+        
+        //判断没有超出边界
+        if(  (x >= WIDTH  )   ||   (y >= HEIGHT)  ）      return; 
+
+        //字符的像素为5x7， 每个字符有5行
+        for(i=0;  i<5;  i++ )                
+            line = font[c * 5 + i];        //一行一行的取字符的像素
+
+            for(j=0; j<8; j++ )          //一列一列的取字符的像素    
+
+               if(line & 1)                                      //从bit0 - bit8 一位一位检查像素是否为1
+                     writePixel(x+i, y+j, color);          //像素为1则点亮
+               else if(bg != color)                         //像素为0则显示背景
+                     writePixel(x+i, y+j, bg);
+
+              line >>= 1
+
+
+---
+
+void writePixel( x,  y,  color) 
+    drawPixel( x, y, color);
+
+---
+
+void drawPixel(uint8_t x, uint8_t y, uint16_t color)
+
+    if(  (x >= WIDTH  )   ||   (y >= HEIGHT)  ）     return;      //加上这一句
+
+    goTo(x, y);
+  
+    spiwrite(color >> 8);    
+    spiwrite(color);
+
+---
+
+void goTo( x,   y )  
+  
+  // set x and y coordinate
+  writeCommand(SSD1331_CMD_SETCOLUMN);
+  writeCommand(x);
+  writeCommand(WIDTH-1);
+
+  writeCommand(SSD1331_CMD_SETROW);
+  writeCommand(y);
+  writeCommand(HEIGHT-1);
+ 
+---
+
+void spiwrite(uint8_t c)    
+ 
+    dc = 1;              // 1 for data
+    sendpacket(c);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+=================参考=======================
+
+void drawChar(  x,   y,   c,   color,   bg,   size) 
+ 
+    uint8_t line; 
+        
+        if(  (x >= _width)               ||    // Clip right               --x>=WIDTH    //96
+             (y >= _height)              ||    // Clip bottom           --y>=HEIGHT  //64
+            ( (x + 6 * size - 1) < 0)   ||    // Clip left                  --x<5
+            ( (y + 8 * size - 1) < 0)         // Clip top                 --y<7
+          )  
+         return;
+
+        //？
+        if(  !_cp437  &&  ( c >= 176 ) )      // Handle 'classic' charset behavior
+             c++ ; 
+
+        for(i=0;  i<5;  i++ )                 // Char bitmap = 5 columns
+            line = font[c * 5 + i];
+
+            for(j=0; j<8; j++, line >>= 1)  
+
+                if(line & 1)  
+                     writePixel(x+i, y+j, color);
+               else if(bg != color)  
+                     writePixel(x+i, y+j, bg);
+
+
+
+
