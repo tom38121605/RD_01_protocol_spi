@@ -1,0 +1,411 @@
+
+
+1. 说明：  先采用不使用DMA的方式
+
+2. spi传送一组字节的过程详解：
+
+    0).  把cs片选线置低电平
+
+    1). 发送1个字节：       NRF_SPI0->TXD = tx_data 
+
+    2). 等待发送完成标志：NRF_SPI_EVENT_READY         //ps： 如果是spi slave 应该是等接收完成标志吧 --待验证
+    2). 清这个NRF_SPI_EVENT_READY标志
+
+    3). 等标志位NRF_SPI_EVENT_READY到了后（这个可以用中断或查询2种方法捕捉），接收一个字节： rx_data =  =NRF_SPI0->RXD
+
+    5). 再发送下一个数据，如此循环
+    5). 直到所有的数据都发送完毕
+
+    6). 把cs片选线置高电平
+
+
+=================spi从初始化到数据读写整个过程==================================
+
+
+main()
+
+   //设置spi的引脚，优先级，频率，模式，MSB
+   spi_config = NRF_DRV_SPI_DEFAULT_CONFIG(SPI_INSTANCE);
+   spi_config.ss_pin = SPI_CS_PIN;
+
+   //设置中断函数， 设置spi模式，初始化spi的io口，配置spi的io口，设置spi的频率为4M，模式为mode0，
+      是否设置为从机（待验证），设置spi0的中断优先级，使能spi0的中断 
+   nrf_drv_spi_init(&spi, &spi_config, spi_event_handler)
+
+
+    while(1)
+
+        nrf_drv_spi_transfer(&spi, m_tx_buf, m_length, m_rx_buf, m_length))
+
+        while (!spi_xfer_done)
+            __WFE();     
+
+
+
+=================================spi 初始化====flow===============================
+
+
+spi初始配置flow：
+
+       spi_config = _DEFAULT_CONFIG(0)  --> spi = _SPI_INSTANCE(0)  
+
+       nrf_drv_spi_init  --> nrf_spi_pins_set --> nrf_spi_frequency_set --> nrf_spi_configure --> nrf_spi_int_enable
+       --> nrf_spi_enable --> nrf_drv_common_irq_enable  
+
+
+--------------------------------------------------------------------------------------------------------------------------------------------
+
+
+main()
+
+   //设置spi的引脚，优先级，频率，模式，MSB
+   spi_config = NRF_DRV_SPI_DEFAULT_CONFIG(SPI_INSTANCE);
+   spi_config.ss_pin = SPI_CS_PIN;
+
+   //设置中断函数， 设置spi模式，初始化spi的io口，配置spi的io口，设置spi的频率为4M，模式为mode0，
+      是否设置为从机（待验证），设置spi0的中断优先级，使能spi0的中断 
+   nrf_drv_spi_init(&spi, &spi_config, spi_event_handler)
+
+
+----------------------------
+
+
+   //------初始化取得默认的config------
+
+   spi_config = NRF_DRV_SPI_DEFAULT_CONFIG(SPI_INSTANCE);
+
+        .sck_pin      = SPI0_CONFIG_SCK_PIN  ,                           // 16
+        .mosi_pin     = SPI0_CONFIG_MOSI_PIN  ,                       // 20
+        .miso_pin     = SPI0_CONFIG_MISO_PIN  ,                       // 18
+        .ss_pin        =  0xFF,                                                      // 17         
+
+        .irq_priority = SPI0_CONFIG_IRQ_PRIORITY  ,                  // APP_IRQ_PRIORITY_LOW    //6
+
+        .orc          = 0xFF,                                                         // oxff  -- 假数据       
+        .frequency    = NRF_DRV_SPI_FREQ_4M,                         // 4M  -- 0x40000000    
+        .mode         = NRF_DRV_SPI_MODE_0,                           // 0 -- mode0            
+        .bit_order    = NRF_DRV_SPI_BIT_ORDER_MSB_FIRST,      // 0 -- MSB first   
+
+   spi_config.ss_pin = SPI_CS_PIN;                                           // 17
+
+
+   //-----初始化取得默认的spix------
+
+   nrf_drv_spi_t  spi = NRF_DRV_SPI_INSTANCE(SPI_INSTANCE);
+       spi.p_registers  =     NRF_SPI0,        
+       spi.irq          =         SPI0_IRQ ,             
+       spi.drv_inst_idx =      SPI0_INSTANCE_INDEX,  
+       spi.use_easy_dma =  SPI0_USE_EASY_DMA   
+
+
+---
+
+//设置中断函数， 设置spi模式，初始化spi的io口，配置spi的io口，设置spi的频率为4M，模式为mode0，是否设置为从机（待验证），设置spi0的中断优先级，使能spi0的中断 
+//参数：&spi, &spi_config, spi_event_handler 
+nrf_drv_spi_init(  p_instance,   p_config,   handler)   //handler 是spi中断函数的指针
+{
+    p_cb  = &m_cb[0];            //结构指针指向结构体   //注意： 这里的m_cb的类型跟p_cb一样
+
+    p_cb->handler = spi_event_handler();  //设置spi的事件回调函数 
+
+    
+    //根据spi模式，设置sck时钟线io口的初始电平
+    if (p_config->mode <= NRF_DRV_SPI_MODE_1)
+        nrf_gpio_pin_clear(p_config->sck_pin);    //NRF_GPIO->OUTCLR.16 =1, 当模式为mode0，mode1时，sck为低电平
+
+
+    //设置sclk的io口, 方向，输入连接，上下拉，驱动，电平检测等      //P16
+    NRF_GPIO->PIN_CNF[16] =
+          (1 << 0 )                 //输出
+        | (0 << 1)                  //连接输入缓冲  （待理解）
+        | (0 << 2)                  //无上下拉
+        | (0 << 8)                  //标准驱动 S0S1 （待理解）
+        | (0 << 16);               //电平检测禁止  （待理解）
+
+
+    //设置mo为输出，初始电平为0 
+        mosi_pin = p_config->mosi_pin;     //P20
+        nrf_gpio_pin_clear(mosi_pin);          //NRF_GPIO->OUTCLR.20 =1,  
+
+        //nrf_gpio_cfg_output(mosi_pin);
+            NRF_GPIO->PIN_CNF[20] =
+                   (1 << 0)                   //输出
+                 | (1 << 1)                   //不连接输入缓冲 （待理解）
+                 | (0 << 2)                   //无上下拉
+                 | (0 << 8)                   //标准驱动 （待理解）
+                 | (0 << 16);                 //电平检测禁止  （待理解）
+
+
+    //设置mi为输入，不带上拉
+        miso_pin = p_config->miso_pin;    //P18
+
+        //nrf_gpio_cfg_input(18, NRF_GPIO_PIN_NOPULL);
+            NRF_GPIO->PIN_CNF[18] =
+                   (0 << 0)                   //输入
+                 | (0 << 1)                   //连接输入缓冲  （待理解）
+                 | (0 << 2)                   //无上下拉
+                 | (0 << 8)                   //标准驱动 （待理解）
+                 | (0 << 16);                 //电平检测禁止  （待理解）
+
+
+     //设置ss为输出，初始电平为1   //P17
+        nrf_gpio_pin_set(17);          //NRF_GPIO->OUTSET.17=1 ,设置cs为高电平  
+
+        //nrf_gpio_cfg_output(17);   
+            NRF_GPIO->PIN_CNF[17] =
+                   (1 << 0)                   //输出
+                 | (1 << 1)                   //不连接输入缓冲 （待理解）
+                 | (0 << 2)                   //无上下拉
+                 | (0 << 8)                   //标准驱动 （待理解）
+                 | (0 << 16);                 //电平检测禁止  （待理解）
+
+    m_cb[0].ss_pin = 17;    //17
+
+    //CODE_FOR_SPI
+        NRF_SPI_Type * p_spi = NRF_SPI0;             
+
+        //设置spi的io口
+        //nrf_spi_pins_set(p_spi, p_config->sck_pin, mosi_pin, miso_pin);          
+            NRF_SPI0->PSELSCK  = 16;          //  设置sck为p16
+            NRF_SPI0->PSELMOSI = 20;        //  设置mo为p20
+            NRF_SPI0->PSELMISO = 18;        //  设置mi为18
+
+        //设置spi的频率4M
+        nrf_spi_frequency_set( p_spi,   p_config->frequency );                         //NRF_SPI0->FREQUENCY = 0x40000000， 设置spi的频率4M
+
+        //设置spi的模式为mode0，MSB在前
+        nrf_spi_configure( p_spi,   p_config->mode,  p_config->bit_order );     //NRF_SPI0->CONFIG.2-1,0 = 00,0 ， 设置spi的模式为mode0，MSB在前
+
+        //设置spi的orc 
+        m_cb[0].orc = p_config->orc;     //   --待理解，先忽略
+
+        //使能spi的END事件
+        if (p_cb->handler)
+            nrf_spi_int_enable(p_spi, NRF_SPI_INT_READY_MASK);       // NRF_SPI0->INTENSET.2 = 1 , 使能spi的END事件 --待理解
+
+        //使能 SPI xxx   --待理解
+        nrf_spi_enable(p_spi);    // NRF_SPI0->ENABLE.0 = 1,  使能 SPI  （数据手册只有SPIM的value =7， 及SPIS的value=2  --疑问）   --待理解
+
+
+        //设置spi0的中断优先级，使能spi0的中断 （SPI0_IRQ）
+        //nrf_drv_common_irq_enable(SPI0_IRQ, 6);   
+            NVIC_SetPriority(SPI0_IRQ, priority);    //NVIC->IP[IRQn]  =  priority <<5 ,    设置spi0中断的优先级        
+            NVIC_ClearPendingIRQ(SPI0_IRQ);      //NVIC->ICPR[ IRQn >>5 ].IRQn = 1,  清除spi0的中断标志   
+            NVIC_EnableIRQ(SPI0_IRQ);                //NVIC->ISER[ IRQn>>5 ].IRQn = 1， 使能spi0的中断        
+
+
+    p_cb->transfer_in_progress = false;
+    p_cb->state = NRF_DRV_STATE_INITIALIZED;
+
+
+
+================================spi 读写数据===flow======================================
+
+
+spi 读写数据flow：
+
+       nrf_drv_spi_transfer --> spi_xfer --> nrf_spi_int_disable --> nrf_spi_event_clear --> NRF_SPI0->TXD = p_tx_buffer[0] --> nrf_spi_int_enable
+       -->  IRQ_HANDLER(0)
+
+
+---------------------------------------------------------------------------------------------------------------------------------------------------
+
+main()
+
+    while(1)
+
+        nrf_drv_spi_transfer( &spi, m_tx_buf, m_length, m_rx_buf, m_length) )
+
+        while(!spi_xfer_done) ;
+
+        //while (!spi_xfer_done)     __WFE();
+
+
+----------------------
+
+//spi读写函数之一
+//参数：&spi, m_tx_buf, m_length, m_rx_buf, m_length  
+ret_code_t nrf_drv_spi_transfer( p_instance,  p_tx_buffer,   tx_buffer_length,  p_rx_buffer, rx_buffer_length)
+
+    nrf_drv_spi_xfer_desc_t   xfer_desc;
+
+    xfer_desc.p_tx_buffer = p_tx_buffer;
+    xfer_desc.p_rx_buffer = p_rx_buffer;
+    xfer_desc.tx_length   = tx_buffer_length;
+    xfer_desc.rx_length   = rx_buffer_length;
+
+    //nrf_drv_spi_xfer(p_instance, &xfer_desc, 0);
+          nrf_gpio_pin_clear(17);                              //cs线，P17置低电平
+          spi_xfer(NRF_SPI0, p_cb, p_xfer_desc);
+
+
+----------------------
+
+//spi读写函数之三
+//参数： NRF_SPI0, p_cb,  p_xfer_desc, 0 
+spi_xfer( *p_spi, *p_cb, *p_xfer_desc )
+ 
+    p_cb->bytes_transferred = 0;
+
+    //清除以前的中断标志
+    nrf_spi_int_disable( p_spi, NRF_SPI_INT_READY_MASK );       //INTENCLR.2=1 , 清除以前的中断标志
+
+    //清除READY标志（接收数据已到账或发送数据已准备）
+    nrf_spi_event_clear( p_spi, NRF_SPI_EVENT_READY );            //NRF_SPI0.EVENTS_READY=0, 清除READY标志（接收数据已到账或发送数据已准备）
+ 
+    //把发送数据buf的第1个数放到TXD中
+    nrf_spi_txd_set(NRF_SPI0, (p_xfer_desc->tx_length > 0 ?  p_xfer_desc->p_tx_buffer[0] : p_cb->orc) );
+        NRF_SPI0->TXD = p_tx_buffer[0];        //把发送数据buf的第1个数放到TXD中
+    
+    nrf_delay_us(8);  //--zz
+ 
+    //把发送数据buf的第2个字节写入到TXD中  （因为nrf的spi的TXD可同时放两个字节）
+    if (p_xfer_desc->tx_length > 1)                                           //为什么不是 >=1     （-- 因为这里是传输第2个字节）
+        //nrf_spi_txd_set(p_spi, p_xfer_desc->p_tx_buffer[1]);
+            NRF_SPI0->TXD = p_tx_buffer[1];
+
+    else if (p_xfer_desc->rx_length > 1)
+        //nrf_spi_txd_set(NRF_SPI0, p_cb->orc);
+             NRF_SPI0->TXD = orc;             //0xff   //如果继续接收数据，则在tx缓冲里发送假数据
+
+
+    //在中断模式下传输数据
+    if (p_cb->handler)   //中断模式下传输数据  
+        nrf_spi_int_enable(p_spi, 1<<2 );    //spi->INTENSET.2=1, 使能spi的READY中断
+ 
+ 
+   （下面转入中断中处理： 一个一个字节依次处理）
+ 
+
+
+
+==============================中断函数的调用===flow============================
+
+
+ 要点： NRF_SPI0->TXD = tx_buffer  --> 产生中断  --> rx_data =  =NRF_SPI0->RXD
+
+中断函数flow：
+
+     #define IRQ_HANDLER(0)     SPI0_IRQ_HANDLER( )
+
+     SPIM0_SPIS0_TWIM0_TWIS0_SPI0_TWI0_IRQHandler --> SPI0_TWI0_IRQHandler --> SPI0_IRQ_HANDLER -->IRQ_HANDLER(0)
+     IRQ_HANDLER(0) -->irq_handler_spi -->  transfer_byte -->  finish_transfer --> spi_event_handler
+
+
+--------------------------------------------------------------------------------------------------------------------------
+
+
+//spi0中断入口
+IRQ_HANDLER(0) 
+    p_cb  = &m_cb[0];
+
+    //irq_handler_spi(NRF_SPI0, p_cb);
+        nrf_spi_event_clear(p_spi, NRF_SPI_EVENT_READY);      //spi0->EVENTS_READY=0, 清除中断标志   --待验证找到该寄存器 （已找到：在结构体中有）
+
+        if (!transfer_byte(NRF_SPI0, p_cb))  //传输下一个字节，直到传输完成 
+            finish_transfer(p_cb);
+  
+---
+
+//spi读写函数之四
+//参数： NRF_SPI0, p_cb
+static bool transfer_byte( *p_spi,  * p_cb)     
+ 
+    //从spi读取数据
+    //rx_data = nrf_spi_rxd_get(p_spi);  
+             rx_data =  =NRF_SPI0->RXD
+
+    //如果接收的长度还没有达到数量，则把新接收的数据存入接收数组中
+    if (p_cb->bytes_transferred < p_cb->evt.data.done.rx_length)   
+
+        p_cb->evt.data.done.p_rx_buffer[p_cb->bytes_transferred] = rx_data;			
+         nrf_delay_us(5);
+
+
+    ++p_cb->bytes_transferred;                                      //传输的长度加1
+
+    bytes_used = p_cb->bytes_transferred + 1;
+		
+    if (bytes_used < p_cb->evt.data.done.tx_length)
+         //nrf_spi_txd_set(p_spi, p_cb->evt.data.done.p_tx_buffer[bytes_used]);
+             NRF_SPI0->TXD = tx_buffer[bytes_used];                      //把发送的数据写入TXD
+
+        return true;
+
+    else if (bytes_used < p_cb->evt.data.done.rx_length)    //如果还有接收的数据，则把发送的数据写入0xff
+         //nrf_spi_txd_set(p_spi, p_cb->orc);
+            spi->TXD = orc;     //0xff
+
+        return true;
+ 
+
+    return (p_cb->bytes_transferred < tx_length || p_cb->bytes_transferred < rx_length);  //如果发生和接收的长度都交换完了，就返回0，表示已传输结束
+		
+
+---
+
+
+//spi传输完成的处理
+ finish_transfer(spi_control_block_t * p_cb)
+ 
+    if (p_cb->ss_pin != NRF_DRV_SPI_PIN_NOT_USED)
+            nrf_gpio_pin_set(p_cb->ss_pin);                           //传输结束后，拉高ss线，关闭片选
+
+    p_cb->transfer_in_progress = false;                            //修改progress状态
+    p_cb->evt.type = NRF_DRV_SPI_EVENT_DONE;            //修改事件状态
+
+    //p_cb->handler(&p_cb->evt);                                   //启动手工中断函数  （实际上这个手工的中断函数没有什么用，有点多余）
+    //spi_event_handler( p_event) 
+          spi_xfer_done = true;
+
+
+
+=====================参考====================== 
+
+
+//spi读写函数之二    （本函数已简化到上面的模块中  --可忽略）
+//参数：&spi, , &xfer_desc, 0 
+ nrf_drv_spi_xfer( &spi ,  p_xfer_desc,  flags)
+ 
+   p_cb  = &m_cb[0];
+
+    if (p_cb->transfer_in_progress)
+        return NRF_ERROR_BUSY;
+    else
+        if (p_cb->handler（中断响应函数） )
+            p_cb->transfer_in_progress = true;
+
+    p_cb->evt.data.done = *p_xfer_desc;
+    p_cb->tx_done = false;
+    p_cb->rx_done = false;
+
+    //把片选线cs拉低，启动片选
+    if (p_cb->ss_pin != NRF_DRV_SPI_PIN_NOT_USED)
+        nrf_gpio_pin_clear(p_cb->ss_pin);
+
+    //开始spi读写交换数据
+    CODE_FOR_SPI
+        spi_xfer(NRF_SPI0, p_cb, p_xfer_desc);
+
+
+
+-------------------
+
+//spi读写函数之三
+//参数： NRF_SPI0, p_cb,  p_xfer_desc, 0 
+spi_xfer( *p_spi, *p_cb, *p_xfer_desc )
+
+     。。。 。。。
+ 
+    else   //查询模式下传输数据
+ 
+        do    //不会执行这里的代码  --因为是选择中断方式
+        {
+            while (!nrf_spi_event_check(p_spi, NRF_SPI_EVENT_READY)) {}    //等待 NRF_SPI0.EVENTS_READY =1， 上一个字节已传输完成的标志 （也意味着这边可以接收读取一个字节了）
+            nrf_spi_event_clear(p_spi, NRF_SPI_EVENT_READY);                   //清除上面的ready标志， EVENTS_READY=0                            
+        } while (transfer_byte(p_spi, p_cb));   //传输下一个字节                
+                
+        //传输结束后，拉高ss线，关闭片选
+        nrf_gpio_pin_set(p_cb->ss_pin);                           //传输结束后，拉高ss线，关闭片选
+
+

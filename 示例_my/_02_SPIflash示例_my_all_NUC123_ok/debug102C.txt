@@ -1,0 +1,187 @@
+
+
+iputs("pairkey--01.\r\n");  //--zz debug
+
+
+=======================ms adpcm 算法  ==================================
+
+
+
+nsamplesperblock =     (  nblockalign - 7 * nchannels  ) * 8       /     (wbitspersample * nchannels)     + 2
+
+padding =  (  nblockalign - 7 * nchannels ) * 8    -    (nsamplesperblock - 2) * nchannels  * wbitspersample  
+
+
+
+
+=======================ms adpcm  文件格式===================================
+
+
+wformattag this must be set to wave_format_adpcm. 
+nchannels number of channels in the wave, 1 for mono, 2 for stereo. 
+nsamplespersec frequency of the sample rate of the wave file. this should be 11025, 22050, or 44100. other sample rates are allowed, but not encouraged. 
+navgbytespersec average data rate. ((nsamplespersec / nsamplesperblock) * nblockalign).
+ playback software can estimate the buffer size using the  value. 
+nblockalign the block alignment (in bytes) of the data in . 
+  nsamplespersec x channels  nblockalign 
+  8k 256 
+  11k 256 
+  22k 512 
+  44k 1024 
+  playback software needs to process a multiple of <nblockalign> bytes of data at a time, so that the value of <nblockalign> can be used for buffer alignment. 
+wbitspersample this is the number of bits per sample of adpcm. currently only 4 bits per sample is defined. other values are reserved. 
+cbsize the size in bytes of the extended information after the waveformatex structure.
+ for the standard wave_format_adpcm using the standard seven coefficient pairs, this is 32. if extra coefficients are added, then this value will increase. 
+nsamplesperblock count of number of samples per block. 
+ (((nblockalign - (7 * nchannels)) * 8) / (wbitspersample * nchannels)) + 2. 
+nnumcoef count of the number of coefficient sets defined in acoef. 
+acoeff  these are the coefficients used by the wave to play. they may be interpreted as fixed point 8.8 signed values. currently there are 7 preset coefficient sets. they must appear in the following order. 
+  coef set coef1 coef2 
+  0 256 0 
+  1 512 -256 
+  2 0 0 
+  3 192 64 
+  4 240 0 
+  5 460 -208 
+  6 392 -232 
+  note that if even only 1 coefficient set was used to encode the file then all coefficient sets are still included. more coefficients may be added by the encoding software, but the first 7 must always be the same. 
+
+
+
+note: 8.8 signed values can be divided by 256 to obtain the integer portion of the value.
+
+block
+
+
+the block has three parts, the header, data, and padding. the three together are <nblockalign> bytes.
+
+typedef struct adpcmblockheader_tag {
+
+byte bpredictor[nchannels];
+
+int idelta[nchannels];
+
+int isamp1[nchannels];
+
+int isamp2[nchannels];
+
+} adpcmblockheader;
+
+field description 
+bpredictor index into the acoef array to define the predictor used to encode this block. 
+idelta initial delta value to use. 
+isamp1 the second sample value of the block. when decoding this will be used as the previous sample to start decoding with. 
+isamp2 the first sample value of the block. when decoding this will be used as the previous' previous sample to start decoding with. 
+
+data
+
+
+the data is a bit string parsed in groups of (wbitspersample * nchannels). 
+
+for the case of mono voice adpcm (wbitspersample = 4, nchannels = 1) we have:
+
+... ...
+
+where  has  or <(sample 2n + 2) (sample 2n + 3)>
+
+ = ((4 bit error delta for sample (2 * n) + 2) << 4) | (4 bit error delta for sample (2 * n) + 3) 
+
+for the case of stereo voice adpcm (wbitspersample = 4, nchannels = 2) we have:
+
+... ...
+
+where  has  or
+
+<(left channel of sample n + 2) (right channel of sample n + 2)>
+
+ = ((4 bit error delta for left channel of sample n + 2) << 4) | (4 bit error delta for right channel of sample n + 2) 
+
+padding
+
+
+bit padding is used to round off the block to an exact byte length.
+
+the size of the padding (in bits):
+
+((nblockalign - (7 * nchannels)) * 8) - 
+
+(((nsamplesperblock - 2) * nchannels) * wbitspersample)
+
+the padding does not store any data and should be made zero.
+
+
+==========文件格式==================
+
+ GLSN + filelen + filenum + addr * 4  + (datanum1 + data1...)  + (datanum2 + data2...)
+
+
+
+======================================
+
+
+spiFlashInit   -- 取得文件头部数据， SN + musicnum + address * musicnum  -- 不变
+
+readWaveHeaderInfo  -- 修改
+dealFlashEvent   -- 修改
+
+其它不变
+
+
+
+============================
+
+
+void dealFlashEvent(s32 *Ldata, s32 *Rdata)
+{
+  static u8 flg2=0;  
+  static u32 L_delta, R_delta;  
+  static u32 L_delta_old, R_delta_old;    
+
+  if(flash_mode == FLASH_PLAY_MUSIC)
+  {
+
+    if (iDataCount < imusicdatalen/4)
+    {      
+       SF_CMD_READ(inowaddress);
+      
+      spiSendWord(0xff, 32);          
+      utemp = SPI1->RX[0];       
+      
+      inowaddress +=4;
+
+      L_delta = utemp & 0xffff;
+      R_delta = (utemp >> 16) & 0xffff;
+
+      L_delta = L_delta<<16;  //16
+      R_delta = R_delta<<16;  //16
+      
+      *Ldata =(s32)(L_delta);
+      *Rdata =(s32)(R_delta);        
+
+      iDataCount++;      
+    }    
+    else   
+    {      
+      
+      iDataCount=0;
+      
+      SPI_CLR_SS0(SPI2); 
+      *Ldata = 0;   
+      *Rdata = 0;      
+      I2S_CLR_RXFIFO();                
+      I2S_CLR_TXFIFO();   
+
+      flash_mode = FLASH_CONFIG;         
+       
+      //flg_softmute=0;
+      adcKeySubHook = playSFMusicEnd; 
+    }
+    
+  }
+}
+
+
+
+
+
+

@@ -1,0 +1,1154 @@
+\subsection*{Overview}
+
+The application is a sample implementation of how various peripherals can be used.
+
+Features\+:
+
+
+\begin{DoxyItemize}
+\item The application can be simply controlled using a text-\/based menu via U\+A\+R\+T1,
+\item Some demos (e.\+g. a U\+A\+R\+T demo) print debug messages which can be read only via U\+A\+R\+T2,
+\item The demo checks the usage of almost all available peripherals.
+\end{DoxyItemize}
+
+\subsubsection*{Folder structure}
+
+\begin{TabularC}{2}
+\hline
+\rowcolor{lightgray}{\bf Top level folders }&{\bf Description  }\\\cline{1-2}
+sdk/adapters/ &Adapter implementations \\\cline{1-2}
+app/ &Application framework, i.\+e. menu and task management \\\cline{1-2}
+sdk/bsp\+\_\+include/ &Common B\+S\+P includes \\\cline{1-2}
+config/ &Configuration of demo applications \\\cline{1-2}
+demos/ &Demo files (see Demos for detailed description) \\\cline{1-2}
+ldscripts/ &Linker scripts \\\cline{1-2}
+sdk/osal/ &O\+S abstraction layer \\\cline{1-2}
+startup/ &Startup files \\\cline{1-2}
+\end{TabularC}
+
+
+\begin{TabularC}{2}
+\hline
+\rowcolor{lightgray}{\bf Config folder contents }&{\bf Description  }\\\cline{1-2}
+config/default/gpio\+\_\+setup.\+h &Default G\+P\+I\+O pin assignment (see G\+P\+I\+O assignments) \\\cline{1-2}
+config/default/userconfig.\+h &Default application configuration (see Suggested configurable parameters) \\\cline{1-2}
+config.\+h &Application configuration (should not be modified directly, modify files above instead) \\\cline{1-2}
+\end{TabularC}
+
+
+\begin{TabularC}{2}
+\hline
+\rowcolor{lightgray}{\bf Demos folder contents }&{\bf Description  }\\\cline{1-2}
+common.\+h &Function prototypes for demo applications \\\cline{1-2}
+periph\+\_\+setup.\+c &Peripherals configuration (i.\+e. actual G\+P\+I\+O configuration) \\\cline{1-2}
+demo\+\_\+$\ast$.c &Demo for single peripheral \\\cline{1-2}
+\end{TabularC}
+\subsubsection*{Demos}
+
+Using the peripherals demo it is possible to check how peripherals work (e.\+g Timers, I2\+C, Q\+S\+P\+I etc.). The features depend on the selected demos which are described below.
+
+\paragraph*{Breath timer demo}
+
+
+\begin{DoxyItemize}
+\item {\bfseries Demonstrated peripheral}\+: Breath Timer
+\item {\bfseries Source file}\+: demo\+\_\+breath.\+c
+\item {\bfseries Description\+:} ~\newline
+ The demo presents an automated breathing function for an external L\+E\+D without software interference.~\newline
+ There are a few examples of possible configurations to achieve various pulsing schemes. The D1 L\+E\+D~\newline
+ located on the board is used by default to present how this peripheral can be used in a practical way.
+\item {\bfseries Pin-\/connections}\+: There is no need to make any additional connections -\/ everything is available on the board.
+\item {\bfseries Run steps}\+:~\newline
+ To enable the demo go to the {\bfseries {\ttfamily config/default/userconfig.\+h}} file and set\+: 
+\begin{DoxyCode}
+\textcolor{preprocessor}{#define CFG\_DEMO\_HW\_BREATH      (1)}
+\end{DoxyCode}
+ Following macros have to be disabled due to pin conflicts\+: 
+\begin{DoxyCode}
+\textcolor{preprocessor}{#define CFG\_DEMO\_AD\_SPI         (0)}
+\textcolor{preprocessor}{#define CFG\_DEMO\_AD\_SPI\_I2C     (0)}
+\textcolor{preprocessor}{#define CFG\_DEMO\_SENSOR\_ADXL362 (0)}
+\end{DoxyCode}
+ After build and run the demo on the board a menu with the following options should appear. Expected result is described in each menu option below.
+\end{DoxyItemize}
+
+\subparagraph*{Constant dim led}
+
+The L\+E\+D shines dim.
+
+\subparagraph*{Constant bright led}
+
+The L\+E\+D shines brightly.
+
+\subparagraph*{Emergency led}
+
+The L\+E\+D blinks fast.
+
+\subparagraph*{Dim standby breath}
+
+The L\+E\+D blinks slow.
+
+\subparagraph*{Slow standby breath}
+
+The L\+E\+D lights up slowly.
+
+\subparagraph*{Disable breath}
+
+Turn off the L\+E\+D.
+
+The following configurations on breath timer are used in this example\+:
+\begin{DoxyItemize}
+\item P\+W\+M duty cycle\+: the percentage of one period in which signal is active -\/ L\+E\+D is shining
+\item P\+W\+M duty cycle step
+\item P\+W\+M frequency\+: system clock division factor
+\item P\+W\+M polarity\+: positive or negative
+\end{DoxyItemize}
+
+\paragraph*{General purpose A\+D\+C demo}
+
+
+\begin{DoxyItemize}
+\item {\bfseries Demonstrated peripheral}\+: G\+P\+A\+D\+C
+\item {\bfseries Source file}\+: demo\+\_\+gpadc.\+c
+\item {\bfseries Description\+:} ~\newline
+ The demo presents the typical usage of a General Purpose Analog-\/to-\/\+Digital Converter (G\+P\+A\+D\+C) with 10-\/bit resolution. After calibration there is a possibility to choose an input source, sampling rate. As well as additional features e.\+g. chopping, oversampling, enabling input attenuator or sign change.
+\end{DoxyItemize}
+
+\begin{quote}
+Note\+: It is advised not to run {\bfseries General Purpose A\+D\+C demo} and {\bfseries General Purpose A\+D\+C adapter demo} consecutively. The reason is, that the former uses the low level driver A\+P\+I of the G\+P\+A\+D\+C while the latter the corresponding of the adapter. As a result the G\+P\+A\+D\+C configuration applied by one demo may not be in sync with the other. \end{quote}
+
+
+
+\begin{DoxyItemize}
+\item {\bfseries Pin-\/connections}\+: The below picture shows to which G\+P\+I\+Os and how external devices should be connected to the board.
+\end{DoxyItemize}
+
+
+\begin{DoxyPre}
+   DIALOG\_DEV\_BOARD\_\_          SOURCE1\_\_\_         SOURCE2\_\_\_         SOURCE3\_\_\_
+   |                 |         |      GND|--.     |      GND|--.     |      GND|--.
+   |       GPADC\_\_\_\_\_|         |         |  |     |         |  |     |         |  |
+   |       |     P0\_7|<--------|V\_OUT\_\_\_\_|  |  .--|V\_OUT\_\_\_\_|  |  .--|V\_OUT\_\_\_\_|  |
+   |       |     P1\_2|<---------------------|--'               |  |               |
+   |       |     P1\_4|<---------------------|------------------|--'               |
+   |       `---------|                      |                  |                  |
+   |              GND|----------------------o------------------o------------------'
+   '-----------------'
+\end{DoxyPre}
+
+
+
+\begin{DoxyItemize}
+\item {\bfseries Run steps}\+:~\newline
+ To enable the demo go to the {\bfseries {\ttfamily config/default/userconfig.\+h}} file and set\+: 
+\begin{DoxyCode}
+\textcolor{preprocessor}{#define CFG\_DEMO\_HW\_GPADC       (1)}
+\end{DoxyCode}
+ Following macros have to be disabled due to pin conflicts\+: 
+\begin{DoxyCode}
+\textcolor{preprocessor}{#define CFG\_DEMO\_HW\_I2C         (0)}
+\textcolor{preprocessor}{#define CFG\_DEMO\_HW\_I2C\_ASYNC   (0)}
+\textcolor{preprocessor}{#define CFG\_DEMO\_AD\_SPI\_I2C     (0)}
+
+\textcolor{preprocessor}{#define CFG\_DEMO\_SENSOR\_BH1750  (0)}
+\textcolor{preprocessor}{#define CFG\_DEMO\_SENSOR\_BME280  (0)}
+\textcolor{preprocessor}{#define CFG\_DEMO\_SENSOR\_BMM150  (0)}
+\textcolor{preprocessor}{#define CFG\_DEMO\_SENSOR\_BMG160  (0)}
+\end{DoxyCode}
+ After build and run the demo on the board a menu with the following options should appear. Expected result is described in each menu option below.
+\end{DoxyItemize}
+
+\subparagraph*{Configure}
+
+
+\begin{DoxyItemize}
+\item Enabling a digital clock turns on an external clock (16 or 96 M\+Hz). If it is disabled then an internal high-\/speed A\+D\+C clock is used.
+\item Input attenuator allows higher input voltage up to +3.6\+V in a single-\/ended mode and -\/3.\+6\+V -\/ +3.6\+V in a differential mode. Disabling it allows voltage up to +1.2\+V in the single-\/ended mode and -\/1.\+2\+V -\/ +1.2\+V in a differential mode.
+\item Chopping function causes the G\+P\+A\+D\+C to take two samples with opposite polarity in each conversion. This is used to cancel an internal offset voltage of the G\+P\+A\+D\+C. It is recommended for D\+C-\/measurements.
+\item Sign change enables conversion with an opposite sign at G\+P\+A\+D\+C input and output to cancel out the internal offset of the A\+D\+C.
+\item Oversampling provides effectively better measurements precision. The more conversion the better precision.
+\item An interval for continuous mode -\/ a period after which the next conversion will be executed.
+\end{DoxyItemize}
+
+\subparagraph*{Select input}
+
+Set an input for G\+P\+A\+D\+C. The input will be used by G\+P\+A\+D\+C to measure the voltage on it.
+
+\subparagraph*{Measure}
+
+Get raw and converted values of measured voltage results.
+
+\subparagraph*{Continuous mode}
+
+In continuous mode, G\+P\+A\+D\+C performs conversions at configured intervals automatically.
+
+\subparagraph*{Show state}
+
+Print the settings of G\+P\+A\+D\+C.
+
+\paragraph*{General Purpose A\+D\+C adapter demo}
+
+
+\begin{DoxyItemize}
+\item {\bfseries Demonstrated peripheral}\+: G\+P\+A\+D\+C
+\item {\bfseries Source file}\+: demo\+\_\+ad\+\_\+gpadc.\+c
+\item {\bfseries Description\+:} ~\newline
+ The demo shows how a G\+P\+A\+D\+C adapter can be used to manage devices connected to G\+P\+A\+D\+C.
+\end{DoxyItemize}
+
+\begin{quote}
+Note\+: It is advised not to run {\bfseries General Purpose A\+D\+C demo} and {\bfseries General Purpose A\+D\+C adapter demo} consecutively. The reason is, that the former uses the low level driver A\+P\+I of the G\+P\+A\+D\+C while the latter the corresponding of the adapter. As a result the G\+P\+A\+D\+C configuration applied by one demo may not be in sync with the other. \end{quote}
+
+
+
+\begin{DoxyItemize}
+\item {\bfseries Pin-\/connections}\+: The below picture shows to which G\+P\+I\+Os and how external devices should be connected to the board.
+\end{DoxyItemize}
+
+
+\begin{DoxyPre}
+                                 EXAMPLE                        EXAMPLE
+   DIALOG\_DEV\_BOARD\_\_            LIGHT\_SENSOR\_\_\_                ENCODER\_SENSOR\_\_\_
+   |                 |           |           GND|--.            |             GND|--.
+   |                 |           |              |  |         .--|V\_OUT1          |  |
+   |                 |        .--|V\_OUT\_\_\_\_\_\_\_\_\_|  |         |  |V\_OUT2\_\_\_\_\_\_\_\_\_\_|  |
+   |       GPADC\_\_\_\_\_|        |                    |         |     |                |
+   |       |     P1\_2|<-------o--------------------|---------'     |                |
+   |       |     P1\_4|<----------------------------|---------------'                |
+   |       `---------|                             |                                |
+   |              GND|-----------------------------o--------------------------------'
+   '-----------------'
+\end{DoxyPre}
+
+
+
+\begin{DoxyItemize}
+\item {\bfseries Run steps}\+:~\newline
+ To enable the demo go to the {\bfseries {\ttfamily config/default/userconfig.\+h}} file and set\+: 
+\begin{DoxyCode}
+\textcolor{preprocessor}{#define CFG\_DEMO\_AD\_GPADC       (1)}
+\end{DoxyCode}
+ Following macros have to be disabled due to pin conflicts\+: 
+\begin{DoxyCode}
+\textcolor{preprocessor}{#define CFG\_DEMO\_HW\_I2C         (0)}
+\textcolor{preprocessor}{#define CFG\_DEMO\_HW\_I2C\_ASYNC   (0)}
+\textcolor{preprocessor}{#define CFG\_DEMO\_AD\_SPI\_I2C     (0)}
+
+\textcolor{preprocessor}{#define CFG\_DEMO\_SENSOR\_BH1750  (0)}
+\textcolor{preprocessor}{#define CFG\_DEMO\_SENSOR\_BME280  (0)}
+\textcolor{preprocessor}{#define CFG\_DEMO\_SENSOR\_BMM150  (0)}
+\textcolor{preprocessor}{#define CFG\_DEMO\_SENSOR\_BMG160  (0)}
+\end{DoxyCode}
+ After build and run the demo on the board a menu with the following options should appear. Expected result is described in each menu option below.
+\end{DoxyItemize}
+
+\subparagraph*{Read battery level}
+
+Read the battery voltage (V\+B\+A\+T).
+
+\subparagraph*{Read temperature sensor}
+
+Measure the ambient temperature with the embeeded temperature sensor. The results are displayed in degrees Celsius.
+
+\subparagraph*{Read light sensor}
+
+Read the voltage on P1.\+2 pin (by default), where the value of an external light sensor is measured. The light sensor is only an example here, other different devices can be connected to the same pin to measure their outputs. The P1.\+2 pin was set as a single-\/ended input where the value is measured with reference to a ground signal (G\+N\+D).
+
+\subparagraph*{Read encoder sensor}
+
+Encoder sensors are mostly used in counting the motors\textquotesingle{} rotations. The demo is an example of using inputs set in differential mode. This can be used e.\+g. to estimate the direction of a motor revolution. In this case the voltage value is measured between the P1.\+2 and P1.\+4 pins. The results are printed in m\+V.
+
+\paragraph*{Temperature sensor adapter demo}
+
+
+\begin{DoxyItemize}
+\item {\bfseries Demonstrated peripheral}\+: Embedded temperature sensor
+\item {\bfseries Source file}\+: ad\+\_\+temp\+\_\+sens.\+c
+\item {\bfseries Description\+:} ~\newline
+ The demo reads the temperature value of the temperature sensor which is embedded into the chip. The results are printed out in a serial terminal in degrees Celsius.
+\item {\bfseries Pin-\/connections}\+: There is no need to make any additional connections -\/ everything is available on the board.
+\item {\bfseries Run steps}\+:~\newline
+ To enable the demo go to the {\bfseries {\ttfamily config/default/userconfig.\+h}} file and set\+: 
+\begin{DoxyCode}
+\textcolor{preprocessor}{#define CFG\_DEMO\_AD\_TEMPSENS      (1)}
+\end{DoxyCode}
+ After build and run the demo on the board a menu with the following options should appear. Expected result is described in each menu option below.
+\end{DoxyItemize}
+
+\subparagraph*{Read Temperature Sensor}
+
+Read the value of Temperature Sensor synchronously.
+
+\subparagraph*{Read Asynchronously Temperature Sensor}
+
+Read the value of Temperature Sensor asynchronously.
+
+\subparagraph*{Read Temperature every 5 seconds}
+
+Read the value of Temperature Sensor synchronously every 5 seconds.
+
+\paragraph*{I2\+C demo}
+
+
+\begin{DoxyItemize}
+\item {\bfseries Demonstrated peripheral}\+: I2\+C
+\item {\bfseries Source file}\+: demo\+\_\+i2c.\+c
+\item {\bfseries Description\+:} ~\newline
+ The demo presents the usage of I2\+C interface with the external devices. It shows read/write operations on external temperature sensor and E\+E\+P\+R\+O\+M memory.
+\end{DoxyItemize}
+
+\begin{quote}
+Note\+: The demo requires an external temperature sensor (F\+M75) and E\+E\+P\+R\+O\+M memory (24\+L\+C256) devices which have to be connected to the I2\+C interface (P1.\+2 -\/ S\+D\+A, P3.\+5 -\/ S\+C\+L)!! \end{quote}
+
+
+
+\begin{DoxyItemize}
+\item {\bfseries Pin-\/connections}\+: The below picture shows to which G\+P\+I\+Os and how external devices should be connected to the board.
+\end{DoxyItemize}
+
+
+\begin{DoxyPre}
+   DIALOG\_DEV\_BOARD\_\_            TEMP\_SENS\_FM75\_                EEPROM\_24LC256\_\_\_
+   |                 |           |           GND|--.            |             GND|--.
+   |                 |        .--|SDA           |  |         .--|SDA             |  |
+   |                 |        |  |SCL\_\_\_\_\_\_\_\_\_\_\_|  |         |  |SCL\_\_\_\_\_\_\_\_\_\_\_\_\_|  |
+   |       I2C1\_\_\_\_\_\_|        |    |               |         |    |                 |
+   |       |SDA(P1\_2)|<-------o----|---------------|---------'    |                 |
+   |       |SCL(P3\_5)|<------------o---------------|--------------'                 |
+   |       `---------|                             |                                |
+   |              GND|-----------------------------o--------------------------------'
+   '-----------------'
+\end{DoxyPre}
+
+
+
+\begin{DoxyItemize}
+\item {\bfseries Run steps}\+:~\newline
+ To enable the demo go to the {\bfseries {\ttfamily config/default/userconfig.\+h}} file and set\+: 
+\begin{DoxyCode}
+\textcolor{preprocessor}{#define CFG\_DEMO\_HW\_I2C         (1)}
+\end{DoxyCode}
+ Following macros have to be disabled due to pin conflicts\+: 
+\begin{DoxyCode}
+\textcolor{preprocessor}{#define CFG\_DEMO\_HW\_GPADC       (0)}
+\textcolor{preprocessor}{#define CFG\_DEMO\_AD\_GPADC       (0)}
+\textcolor{preprocessor}{#define CFG\_DEMO\_HW\_TIMER2      (0)}
+\end{DoxyCode}
+ After build and run the demo on the board a menu with the following options should appear. Expected result is described in each menu option below.
+\end{DoxyItemize}
+
+\subparagraph*{Write data to E\+E\+P\+R\+O\+M}
+
+Write random data to the E\+E\+P\+R\+O\+M memory.
+
+\subparagraph*{Read data from E\+E\+P\+R\+O\+M}
+
+Read data which had been written to the memory.
+
+\subparagraph*{Set F\+M75 configuration}
+
+There is a possibility to set\+:
+\begin{DoxyItemize}
+\item Sensor resolution to 9, 10, 11 or 12 bit,
+\item An alarm range where it is not activated
+\end{DoxyItemize}
+
+\subparagraph*{Enable temperature sensor}
+
+Toggle on/off reading from the temperature sensor.
+
+The following configurations on I2\+C are used in this example\+:
+\begin{DoxyItemize}
+\item I2\+C speed\+: standard, it can be changed to fast
+\item I2\+C mode\+: master, which means that the board manages the external devices
+\item I2\+C addressing mode\+: 7-\/bit addressing, there is also possibility to select 10-\/bit addressing
+\end{DoxyItemize}
+
+\paragraph*{I2\+C demo async}
+
+
+\begin{DoxyItemize}
+\item {\bfseries Demonstrated peripheral}\+: I2\+C
+\item {\bfseries Source file}\+: demo\+\_\+i2c\+\_\+async.\+c
+\item {\bfseries Description\+:} ~\newline
+ The demo does exactly the same as I2\+C demo but this one uses asynchronous write and read operations on external devices, resulting in faster actions.
+\item {\bfseries Pin-\/connections}\+: The same as in I2\+C demo
+\item {\bfseries Run steps}\+:~\newline
+ To enable the demo go to the {\bfseries {\ttfamily config/default/userconfig.\+h}} file and set\+: 
+\begin{DoxyCode}
+\textcolor{preprocessor}{#define CFG\_DEMO\_HW\_I2C\_ASYNC      (1)}
+\end{DoxyCode}
+ Following macros have to be disabled due to pin conflicts\+: 
+\begin{DoxyCode}
+\textcolor{preprocessor}{#define CFG\_DEMO\_HW\_GPADC          (0)}
+\textcolor{preprocessor}{#define CFG\_DEMO\_AD\_GPADC          (0)}
+\textcolor{preprocessor}{#define CFG\_DEMO\_HW\_TIMER2         (0)}
+\end{DoxyCode}
+
+\end{DoxyItemize}
+
+\paragraph*{I\+R generator demo}
+
+
+\begin{DoxyItemize}
+\item {\bfseries Demonstrated peripheral}\+: Infra\+Red Generator (I\+R)
+\item {\bfseries Source file}\+: demo\+\_\+irgen.\+c
+\item {\bfseries Description\+:} ~\newline
+ This is a complete example of how the I\+R generator can be used to implement the I\+R transmission protocol. A N\+E\+C protocol is used here.
+\item {\bfseries Run steps}\+:~\newline
+ To enable the demo go to the {\bfseries {\ttfamily config/default/userconfig.\+h}} file and set\+: 
+\begin{DoxyCode}
+\textcolor{preprocessor}{#define CFG\_DEMO\_HW\_IRGEN      (1)}
+\end{DoxyCode}
+ After build and run the demo on the board a menu with the following options should appear. Expected result is described in each menu option below.
+\end{DoxyItemize}
+
+\subparagraph*{Send N\+E\+C protocol command}
+
+4 shots -\/ the I\+R sends N\+E\+C command 4 times and stops. Repeat -\/ the I\+R is sending N\+E\+C command repeatedly.
+
+\subparagraph*{Stop sending command}
+
+Turn off the I\+R generator.
+
+The following configurations on Infra\+Red Generator are used in this example\+:
+\begin{DoxyItemize}
+\item I\+R logic bit format\+: mark is followed by space
+\item I\+R F\+I\+F\+O\+: code and repeat F\+I\+F\+O
+\item Paint symbol\+: space and mark
+\item Output mode\+: inverted
+\end{DoxyItemize}
+
+\paragraph*{Power mode demo}
+
+
+\begin{DoxyItemize}
+\item {\bfseries Demonstrated peripheral}\+: Clock-\/\+Power manager
+\item {\bfseries Source file}\+: demo\+\_\+power\+\_\+mode.\+c
+\item {\bfseries Description\+:} ~\newline
+ This is a typical example of using the various sleep modes. Demostrating the platform in sleep mode if the user had previously chosen one of the sleep modes. The platform can be awakened by pressing the K1 button.
+\item {\bfseries Pin-\/connections}\+: There is no need to make any additional connections -\/ everything is available on the board.
+\item {\bfseries Run steps}\+:~\newline
+ To enable the demo go to the {\bfseries {\ttfamily config/default/userconfig.\+h}} file and set\+: 
+\begin{DoxyCode}
+\textcolor{preprocessor}{#define CFG\_DEMO\_POWER\_MODE      (1)}
+\end{DoxyCode}
+ Following macro has to be disabled due to pin conflicts\+: 
+\begin{DoxyCode}
+\textcolor{preprocessor}{#define CFG\_DEMO\_HW\_WKUP         (0)}
+\end{DoxyCode}
+ After build and run the demo on the board a menu with the following options should appear.
+\begin{DoxyItemize}
+\item Go to Active Mode
+\item Go to Extended Sleep Mode
+\item Go to Hibernation Mode
+\end{DoxyItemize}
+\end{DoxyItemize}
+
+Expected result\+:~\newline
+ If the platform is in an Extended Sleep, a Deep Sleep or a Hibernation Sleep Mode pressing the button wakes it and sets Active Mode. The proper messages about these operations will be printed in a serial terminal. Smart\+Snippets toolbox power profile or digital current meter can be used to monitor the current changes across the power mode switch.
+
+\paragraph*{Quad S\+P\+I demo}
+
+
+\begin{DoxyItemize}
+\item {\bfseries Demonstrated peripheral}\+: Q\+S\+P\+I
+\item {\bfseries Source file}\+: demo\+\_\+qspi.\+c
+\item {\bfseries Description\+:} ~\newline
+ The demo presents communication with the F\+L\+A\+S\+H memory by using Quad S\+P\+I interface. There are two speeds of data transmission\+:
+\begin{DoxyItemize}
+\item fast (quad mode) -\/ 4 signal lines are used to execute read/write operations,
+\item slow (single mode) -\/ 1 signal line is used to execute read/write operations.
+\end{DoxyItemize}
+\item {\bfseries Pin-\/connections}\+: There is no need to make any additional connections -\/ everything is available on the board.
+\item {\bfseries Run steps}\+:~\newline
+ To enable the demo go to the {\bfseries {\ttfamily config/default/userconfig.\+h}} file and set\+: 
+\begin{DoxyCode}
+\textcolor{preprocessor}{#define CFG\_DEMO\_HW\_QSPI        (1)}
+\end{DoxyCode}
+ After build and run the demo on the board a menu with the following options should appear. Expected result is described in each menu option below.
+\end{DoxyItemize}
+
+\subparagraph*{Set fastest quad mode}
+
+Set fastest data transmission -\/ quad mode.
+
+\subparagraph*{Set slowest single mode}
+
+Set slowest data transmission -\/ single mode.
+
+\subparagraph*{Test performance}
+
+Copy data from R\+A\+M to R\+A\+M, R\+O\+M to R\+A\+M, F\+L\+A\+S\+H to R\+A\+M memories, execute it and show the time statistics of the performed operations.
+
+\subparagraph*{Q\+S\+P\+I divider X}
+
+Divide S\+P\+I clock by X divider. It is selected by a user. By default it is set to 1.
+
+The following configurations on Q\+S\+P\+I are used in this example\+:
+\begin{DoxyItemize}
+\item Q\+S\+P\+I address size\+: flash memory uses 24 bits address
+\item Idle clock state\+: high state on idle state of the S\+P\+I clock
+\item Q\+S\+P\+I sampling edge\+: negative sampling edge
+\item Q\+S\+P\+I bus mode\+: single and quad modes
+\end{DoxyItemize}
+
+\paragraph*{Quadrature decoder demo}
+
+
+\begin{DoxyItemize}
+\item {\bfseries Demonstrated peripheral}\+: Quadrature decoder (Q\+U\+A\+D)
+\item {\bfseries Source file}\+: demo\+\_\+quad.\+c
+\item {\bfseries Description\+:} ~\newline
+ Demonstrates automatic signal decoding for the X, Y and Z axes of an externally connected H\+I\+D device. Step count and direction data are printed in a serial terminal.
+\item {\bfseries Pin-\/connections}\+: The below picture shows to which G\+P\+I\+Os and how external devices should be connected to the board.
+\end{DoxyItemize}
+
+
+\begin{DoxyPre}
+   DIALOG\_DEV\_BOARD\_\_          HID\_DEVICE\_\_\_
+   |       QUAD\_\_\_\_\_\_|         |            |
+   |       | XB(P4\_1)|<--------|X2          |
+   |       | ZA(P4\_2)|<--------|Z1          |
+   |       | ZB(P4\_3)|<--------|Z2          |
+   |       | XA(P4\_4)|<--------|X1          |
+   |       | YA(P4\_6)|<--------|Y1          |
+   |       | YB(P4\_7)|<--------|Y2          |
+   |       `---------|         |            |
+   |              GND|---------|GND         |
+   '-----------------'         '------------'
+\end{DoxyPre}
+
+
+
+\begin{DoxyItemize}
+\item {\bfseries Run steps}\+:~\newline
+ To enable the demo go to the {\bfseries {\ttfamily config/default/userconfig.\+h}} file and set\+: 
+\begin{DoxyCode}
+\textcolor{preprocessor}{#define CFG\_DEMO\_HW\_QUAD      (1)}
+\end{DoxyCode}
+ Following macros have to be disabled due to pin conflicts\+: 
+\begin{DoxyCode}
+\textcolor{preprocessor}{#define CFG\_DEMO\_AD\_SPI       (0)}
+\textcolor{preprocessor}{#define CFG\_DEMO\_AD\_SPI\_I2C   (0)}
+\textcolor{preprocessor}{#define CFG\_AD\_SPI\_1          (0)}
+\end{DoxyCode}
+ After build and run the demo on the board a menu with the following options should appear. Expected result is described in each menu option below.
+\end{DoxyItemize}
+
+\subparagraph*{Enable/disable channel}
+
+Enable/disable channel for X, Y or Z axis.
+
+\subparagraph*{Set threshold}
+
+Set threshold to 1, 64 or 127 events. If one of the axes will reach the threshold value an interrupt is generated and current values of steps for each axis are printed in a serial terminal.
+
+\subparagraph*{Get channels state}
+
+Print activity state (active or inactive) and number of steps for each axis.
+
+\paragraph*{Sensor demos}
+
+
+\begin{DoxyItemize}
+\item {\bfseries Demonstrated peripheral}\+: Accelerometer sensor (A\+D\+X\+L362), Environmental sensor (B\+M\+E280), Geomagnetic sensor (B\+M\+M150), Gyroscope sensor (B\+M\+G160), Light sensor (B\+H1750)
+\item {\bfseries Source file}\+: demo\+\_\+sensors.\+c
+\item {\bfseries Description\+:} ~\newline
+ Sensor demos can be activated in userconfig.\+h. To use sensor demos {\ttfamily D\+A14680\+\_\+\+Sensor\+\_\+\+Board} is needed.
+\item {\bfseries Pin-\/connections}\+: Put D\+A14680\+\_\+\+Sensor\+\_\+\+Board on dialog development board and needed connections will be created.
+\end{DoxyItemize}
+
+\subparagraph*{Accelerometer sensor (A\+D\+X\+L362)}
+
+Print raw and converted in 4g range x,y,z axes acceleration using 8 bit and 12 bit resolution.
+
+
+\begin{DoxyItemize}
+\item {\bfseries Run steps}\+:~\newline
+ To enable the demo go to the {\bfseries {\ttfamily config/default/userconfig.\+h}} file and set\+: 
+\begin{DoxyCode}
+\textcolor{preprocessor}{#define CFG\_DEMO\_SENSOR\_ADXL362      (1)}
+\end{DoxyCode}
+ Following macro has to be disabled due to pin conflicts\+: 
+\begin{DoxyCode}
+\textcolor{preprocessor}{#define CFG\_DEMO\_HW\_TIMER2           (0)}
+\end{DoxyCode}
+
+\end{DoxyItemize}
+
+For following sensors B\+M\+E280, B\+M\+M150, B\+M\+G160 and B\+H1750 the below macros have to be disabled\+: 
+\begin{DoxyCode}
+\textcolor{preprocessor}{#define CFG\_DEMO\_HW\_GPADC            (0)}
+\textcolor{preprocessor}{#define CFG\_DEMO\_AD\_GPADC            (0)}
+\textcolor{preprocessor}{#define CFG\_DEMO\_HW\_TIMER2           (0)}
+\end{DoxyCode}
+
+
+\subparagraph*{Environmental sensor (B\+M\+E280)}
+
+Print raw and converted (according to a specification) temperature, pressure and humidity measurements.
+
+
+\begin{DoxyItemize}
+\item {\bfseries Run steps}\+:~\newline
+ To enable the demo go to the {\bfseries {\ttfamily config/default/userconfig.\+h}} file and set\+: 
+\begin{DoxyCode}
+\textcolor{preprocessor}{#define CFG\_DEMO\_SENSOR\_BME280       (1)}
+\end{DoxyCode}
+
+\end{DoxyItemize}
+
+\subparagraph*{Geomagnetic sensor (B\+M\+M150)}
+
+Print raw and converted compensated magnetometer data (for x,y,z axes) in 16 bit resolution.
+
+
+\begin{DoxyItemize}
+\item {\bfseries Run steps}\+:~\newline
+ To enable the demo go to the {\bfseries {\ttfamily config/default/userconfig.\+h}} file and set\+: 
+\begin{DoxyCode}
+\textcolor{preprocessor}{#define CFG\_DEMO\_SENSOR\_BMM150       (1)}
+\end{DoxyCode}
+
+\end{DoxyItemize}
+
+\subparagraph*{Gyroscope sensor (B\+M\+G160)}
+
+Print raw and converted gyroscope data (for x,y,z axes) in 16 bit resolution.
+
+
+\begin{DoxyItemize}
+\item {\bfseries Run steps}\+:~\newline
+ To enable the demo go to the {\bfseries {\ttfamily config/default/userconfig.\+h}} file and set\+: 
+\begin{DoxyCode}
+\textcolor{preprocessor}{#define CFG\_DEMO\_SENSOR\_BMG160       (1)}
+\end{DoxyCode}
+
+\end{DoxyItemize}
+
+\subparagraph*{Light sensor (B\+H1750)}
+
+Prints raw and calculated illumination data in 16 bit resolution.
+
+
+\begin{DoxyItemize}
+\item {\bfseries Run steps}\+:~\newline
+ To enable the demo go to the {\bfseries {\ttfamily config/default/userconfig.\+h}} file and set\+: 
+\begin{DoxyCode}
+\textcolor{preprocessor}{#define CFG\_DEMO\_SENSOR\_BH1750       (1)}
+\end{DoxyCode}
+
+\end{DoxyItemize}
+
+\paragraph*{S\+P\+I demo with using O\+S abstraction layer}
+
+
+\begin{DoxyItemize}
+\item {\bfseries Demonstrated peripheral}\+: S\+P\+I
+\item {\bfseries Source file}\+: demo\+\_\+spi\+\_\+os.\+c
+\item {\bfseries Description\+:} ~\newline
+ The demo presents the Serial Peripheral Interface (S\+P\+I) with a master/slave capability. The demo uses F\+L\+A\+S\+H memory (A\+T45\+D\+B011\+D) to show basic operations like writing, reading and erasing the memory.
+\end{DoxyItemize}
+
+\begin{quote}
+Note\+: A\+T45\+D\+B011\+D (F\+L\+A\+S\+H memory) has to be connected externally. It is not placed on the development board! \end{quote}
+
+
+
+\begin{DoxyItemize}
+\item {\bfseries Pin-\/connections}\+: The below picture shows to which G\+P\+I\+Os and how external devices should be connected to the board.
+\end{DoxyItemize}
+
+
+\begin{DoxyPre}
+   DIALOG\_DEV\_BOARD\_\_          AT45DB011D\_\_\_\_\_\_
+   |       SPI\_\_\_\_\_\_\_|         |               |
+   |       | DO(P3\_7)|-------->|SO             |
+   |       | DI(P4\_0)|<--------|SI             |
+   |       |CLK(P4\_1)|-------->|SCK            |
+   |       | CS(P2\_0)|-------->|!CS            |
+   |       `---------|         |               |
+   |(MASTER)      GND|---------|GND     (SLAVE)|
+   '-----------------'         '---------------'
+\end{DoxyPre}
+
+
+
+\begin{DoxyItemize}
+\item {\bfseries Run steps}\+:~\newline
+ To enable the demo go to the {\bfseries \textquotesingle{}config/default/userconfig.\+h\textquotesingle{}} file and set\+: 
+\begin{DoxyCode}
+\textcolor{preprocessor}{#define CFG\_DEMO\_AD\_SPI      (1)}
+\end{DoxyCode}
+ Following macro has to be disabled due to pin conflicts\+: 
+\begin{DoxyCode}
+\textcolor{preprocessor}{#define CFG\_DEMO\_HW\_BREATH   (0)}
+\textcolor{preprocessor}{#define CFG\_DEMO\_HW\_TIMER2   (0)}
+\textcolor{preprocessor}{#define CFG\_DEMO\_HW\_QUAD     (0)}
+\textcolor{preprocessor}{#define CFG\_DEMO\_AD\_UART     (0)}
+\end{DoxyCode}
+ After build and run the demo on the board a menu with the following options should appear. Expected result is described in each menu option below.
+\end{DoxyItemize}
+
+\subparagraph*{Write time to A\+T45\+D\+B011\+D}
+
+Write time (tick time) to the flash.
+
+\subparagraph*{Erase log area in A\+T45\+D\+B011\+D}
+
+Erase page with the results.
+
+\subparagraph*{Print log from A\+T45\+D\+B011\+D}
+
+Read data (time results) written to the flash.
+
+\paragraph*{S\+P\+I and I2\+C demo with using O\+S abstraction layer}
+
+
+\begin{DoxyItemize}
+\item {\bfseries Demonstrated peripheral}\+: S\+P\+I, I2\+C
+\item {\bfseries Source file}\+: demo\+\_\+i2c\+\_\+spi.\+c
+\item {\bfseries Description\+:} ~\newline
+ The demo presents synchronous and asynchronous actions using the S\+P\+I and I2\+C interfaces.
+\end{DoxyItemize}
+
+\begin{quote}
+Note\+: A\+T45\+D\+B011\+D (F\+L\+A\+S\+H memory) and 24xx256 (E\+E\+P\+R\+O\+M memory) has to be connected externally. They are not placed on the development board! \end{quote}
+
+
+
+\begin{DoxyItemize}
+\item {\bfseries Pin-\/connections}\+: The below picture shows to which G\+P\+I\+Os and how external devices should be connected to the board.
+\end{DoxyItemize}
+
+
+\begin{DoxyPre}
+   DIALOG\_DEV\_BOARD\_\_            AT45DB011D\_\_\_\_\_\_
+   |       SPI\_\_\_\_\_\_\_|           |               |
+   |       | DO(P3\_7)|---------->|SO             |
+   |       | DI(P4\_0)|<----------|SI             |
+   |       |CLK(P4\_1)|---------->|SCK            |
+   |       | CS(P2\_0)|---------->|!CS            |
+   |       `---------|           |               |
+   |              GND|-----------|GND     (SLAVE)|
+   |(MASTER)         |           '---------------'
+   |                 |
+   |       I2C\_\_\_\_\_\_\_|           24xx256\_\_\_\_\_\_\_\_\_
+   |       |SDA(P1\_2)|<--------->|SDA            |
+   |       |SCL(P3\_5)|---------->|SCL            |
+   |       `---------|           |               |
+   |              GND|-----------|VSS     (SLAVE)|
+   '-----------------'           '---------------'
+\end{DoxyPre}
+
+
+
+\begin{DoxyItemize}
+\item {\bfseries Run steps}\+:~\newline
+ To enable the demo go to the {\bfseries \textquotesingle{}config/default/userconfig.\+h\textquotesingle{}} file and set\+: 
+\begin{DoxyCode}
+\textcolor{preprocessor}{#define CFG\_DEMO\_AD\_SPI\_I2C  (1)}
+\end{DoxyCode}
+ Following macro has to be disabled due to pin conflicts\+: 
+\begin{DoxyCode}
+\textcolor{preprocessor}{#define CFG\_DEMO\_HW\_BREATH   (0)}
+\textcolor{preprocessor}{#define CFG\_DEMO\_HW\_TIMER2   (0)}
+\textcolor{preprocessor}{#define CFG\_DEMO\_HW\_QUAD     (0)}
+\textcolor{preprocessor}{#define CFG\_DEMO\_AD\_UART     (0)}
+\end{DoxyCode}
+ After build and run the demo on the board a menu with the following options should appear. Expected result is described in each menu option below.
+\end{DoxyItemize}
+
+\subparagraph*{Copy from A\+T45\+D\+B011\+D to 24xx256 \mbox{[}async\mbox{]}}
+
+Depending on a chosen option it copies data from A\+T45\+D\+B011\+D (S\+P\+I) to 24xx256 (I2\+C) memory synchronously or asynchronously.
+
+\subparagraph*{Copy from 24xx256 to A\+T45\+D\+B011\+D \mbox{[}async\mbox{]}}
+
+Depending on chosen option it copies data from 24xx256 (I2\+C) to A\+T45\+D\+B011\+D (S\+P\+I) memory synchronously or asynchronously.
+
+\paragraph*{Timer 0 demo}
+
+
+\begin{DoxyItemize}
+\item {\bfseries Demonstrated peripheral}\+: Timer0
+\item {\bfseries Source file}\+: demo\+\_\+timer0.\+c
+\item {\bfseries Description\+:} ~\newline
+ The demo presents a general purpose timer with P\+W\+M output. There are a few examples of how the timer can be used to blink or dim the D2 L\+E\+D by using precisely calculated P\+W\+M settings.
+\item {\bfseries Pin-\/connections}\+: There is no need to make any additional connections -\/ everything is available on the board.
+\item {\bfseries Run steps}\+:~\newline
+ To enable the demo go to the {\bfseries {\ttfamily config/default/userconfig.\+h}} file and set\+: 
+\begin{DoxyCode}
+\textcolor{preprocessor}{#define CFG\_DEMO\_HW\_TIMER0      (1)}
+\end{DoxyCode}
+ After build and run the demo on the board a menu with the following options should appear. Expected result is described in each menu option below.
+\end{DoxyItemize}
+
+\subparagraph*{Blink L\+E\+D 4 times}
+
+The L\+E\+D blinks 4 times and turns off.
+
+\subparagraph*{Blink L\+E\+D 10 times}
+
+The L\+E\+D blinks 10 times and turns off.
+
+\subparagraph*{Blink L\+E\+D 7 times lower intensity}
+
+The L\+E\+D blinks 7 times with lower intensity and turns off.
+
+\subparagraph*{Set bright L\+E\+D with P\+W\+M 90\%}
+
+The L\+E\+D shines brightly.
+
+\subparagraph*{Set bright L\+E\+D with P\+W\+M 20\%}
+
+The L\+E\+D shines dim.
+
+\subparagraph*{Low power indicator (short blinks)}
+
+The L\+E\+D starts generating very short blinks like a power indicator when the battery is low.
+
+\subparagraph*{Turn off L\+E\+D}
+
+Turns off the L\+E\+D.
+
+The following configurations on timer0 are used in this example\+:
+\begin{DoxyItemize}
+\item Clock resource of timer0 \+: slow 32 k\+Hz clock
+\item P\+W\+M mode\+: full brightness P\+W\+M mode or half brightness C\+L\+O\+C\+K mode that will change duty cycle to 50\% when L\+E\+D is on
+\item Duty cycle\+: percentage of one period in which a signal or system is active
+\item Reload O\+N counter to set up the time when timer0 interrupt happens
+\end{DoxyItemize}
+
+\paragraph*{Timer 1 demo}
+
+
+\begin{DoxyItemize}
+\item {\bfseries Demonstrated peripheral}\+: Timer1
+\item {\bfseries Source file}\+: demo\+\_\+timer1.\+c
+\item {\bfseries Description\+:} ~\newline
+ The demo presents a general purpose timer with P\+W\+M capability. The timer may count up or down with a 16-\/bit resolution. There are couple settings how to configure the P\+W\+M output. The higher value of frequency and/or duty cycle, the brighter the D2 L\+E\+D shines.
+\item {\bfseries Pin-\/connections}\+: The picture below shows the G\+P\+I\+Os and how the external devices should be connected to the board or the way that a user can use L\+E\+D2 which is located on the board (read Timer1 brief section in userconfig.\+h)
+\end{DoxyItemize}
+
+
+\begin{DoxyPre}
+   DIALOG\_DEV\_BOARD\_\_
+   |                 |
+   |       GPIO\_\_\_\_\_\_|      \_\_\_\_\_       \_\_\_\_\_
+   |       |     P1\_6|--o--|\_\_R\_\_|--o--|A\_\_\_K|--o--.
+   |       `---------|      330R         LED       |
+   |                 |                             |
+   |              GND|-----------------------------'
+   '-----------------'
+\end{DoxyPre}
+
+
+
+\begin{DoxyItemize}
+\item {\bfseries Run steps}\+:~\newline
+ To enable the demo go to the {\bfseries {\ttfamily config/default/userconfig.\+h}} file and set\+: 
+\begin{DoxyCode}
+\textcolor{preprocessor}{#define CFG\_DEMO\_HW\_TIMER1      (1)}
+\end{DoxyCode}
+ After build and run the demo on the board a menu with the following options should appear. Expected result is described in each menu option below.
+\end{DoxyItemize}
+
+\subparagraph*{P\+W\+M frequency}
+
+Set the frequency of the P\+W\+M signal\+: 64 Hz, 128 Hz or 256 Hz.
+
+\subparagraph*{P\+W\+M duty cycle}
+
+Set the duty cycle of the P\+W\+M signal\+: 25\%, 50\% or 75\%.
+
+\begin{quote}
+Note\+: In order to apply the settings, the frequency must be set first before setting duty cycle. \end{quote}
+
+
+\paragraph*{Timer 2 demo}
+
+
+\begin{DoxyItemize}
+\item {\bfseries Demonstrated peripheral}\+: Timer2
+\item {\bfseries Source file}\+: demo\+\_\+timer2.\+c
+\item {\bfseries Description\+:} ~\newline
+ The demo presents usage of a 14-\/bit timer which controls three P\+W\+M signals. An external R\+G\+B L\+E\+D is used to show how the timer can be used in a typical situation. Depending on the P\+W\+M settings, the L\+E\+D changes color and brightness. By default the L\+E\+D should be connected to P3.\+5, P3.\+6 and P3.\+7 pins (inputs can be changed in the {\ttfamily config/default/gpio\+\_\+setup.\+h} file).
+\item {\bfseries Pin-\/connections}\+: The picture below shows the G\+P\+I\+Os and how the external devices should be connected to the board.
+\end{DoxyItemize}
+
+
+\begin{DoxyPre}
+                                         RGB\_LED\_\_\_\_\_
+   DIALOG\_DEV\_BOARD\_\_         \_\_\_\_\_      |           |
+   |                 |  .-o--|\_\_R\_\_|--o--|RED        |
+   |       GPIO\_\_\_\_\_\_|  |     330R       |           |
+   |       |     P3\_5|--'     \_\_\_\_\_      |           |
+   |       |     P3\_6|----o--|\_\_R\_\_|--o--|GREEN      |
+   |       |     P3\_7|--.     330R       |           |
+   |       `---------|  |     \_\_\_\_\_      |           |
+   |                 |  '-o--|\_\_R\_\_|--o--|BLUE       |
+   |                 |        330R       |           |
+   |                 |                   |           |
+   |              GND|-------------------|COMMON     |
+   '-----------------'                   '-----------'
+\end{DoxyPre}
+
+
+
+\begin{DoxyItemize}
+\item {\bfseries Run steps}\+:~\newline
+ To enable the demo go to the {\bfseries {\ttfamily config/default/userconfig.\+h}} file and set\+: 
+\begin{DoxyCode}
+\textcolor{preprocessor}{#define CFG\_DEMO\_HW\_TIMER2      (1)}
+\end{DoxyCode}
+ Following macro has to be disabled due to pin conflicts\+: 
+\begin{DoxyCode}
+\textcolor{preprocessor}{#define CFG\_DEMO\_AD\_SPI         (0)}
+\textcolor{preprocessor}{#define CFG\_DEMO\_AD\_SPI\_I2C     (0)}
+
+\textcolor{preprocessor}{#define CFG\_DEMO\_HW\_I2C         (0)}
+\textcolor{preprocessor}{#define CFG\_DEMO\_HW\_I2C\_ASYNC   (0)}
+
+\textcolor{preprocessor}{#define CFG\_DEMO\_SENSOR\_BH1750  (0)}
+\textcolor{preprocessor}{#define CFG\_DEMO\_SENSOR\_BME280  (0)}
+\textcolor{preprocessor}{#define CFG\_DEMO\_SENSOR\_ADXL362 (0)}
+\textcolor{preprocessor}{#define CFG\_DEMO\_SENSOR\_BMM150  (0)}
+\textcolor{preprocessor}{#define CFG\_DEMO\_SENSOR\_BMG160  (0)}
+\end{DoxyCode}
+ After build and run the demo on the board a menu with the following options should appear. Expected result is described in each menu option below.
+\end{DoxyItemize}
+
+\subparagraph*{Set P\+W\+Ms frequency}
+
+Set the timer frequency to 20k\+Hz, 4 k\+Hz or 250 Hz. The higher frequency the brighter the L\+E\+D shines.
+
+\subparagraph*{Set start/end P\+W\+Ms duty cycles}
+
+P\+W\+M signals are generated with the same period but there is the possibility to manually specify start and end position of high state inside single cycle for each P\+W\+M separately. The option shows the P\+W\+M duty cycles (25\%) which are shifted beetwen themselves. It causes the L\+E\+D to change the color fluently.
+
+\subparagraph*{Light R\+G\+B L\+E\+D}
+
+Turn on the L\+E\+D with chosen color (Grey, Orange, Violet, Yellow, Magenta or Cyan).
+
+\subparagraph*{P\+W\+Ms state}
+
+Print information about the frequency and duty cycles of each P\+W\+M signal.
+
+\subparagraph*{Pause timer}
+
+Pause/\+Resume the timer, i.\+e. toggle on/off the L\+E\+D. If option is checked then timer is paused.
+
+The following configurations on timer2 are used in this example\+:
+\begin{DoxyItemize}
+\item Division factor\+: use to divide the main frequency (16 M\+Hz) to smaller values to slow the timing
+\item 3 P\+W\+M\textquotesingle{}s are used with different start/end duty cycles
+\end{DoxyItemize}
+
+\paragraph*{U\+A\+R\+T demo with using O\+S abstraction layer}
+
+
+\begin{DoxyItemize}
+\item {\bfseries Demonstrated peripheral}\+: U\+A\+R\+T
+\item {\bfseries Source file}\+: demo\+\_\+uart\+\_\+os.\+c
+\item {\bfseries Description\+:} ~\newline
+ The demo presents concurrent access to U\+A\+R\+T from two tasks. It uses U\+A\+R\+T locking system to properly handle the concurrent access from the different tasks.
+\item {\bfseries Pin-\/connections}\+: The picture below shows the G\+P\+I\+Os and how the external devices should be connected to the board.
+\end{DoxyItemize}
+
+
+\begin{DoxyPre}
+   DIALOG\_DEV\_BOARD\_\_
+   |                 |            UART<->USB\_CONVERTER\_\_              PC\_\_\_\_\_\_\_\_\_\_\_
+   |       UART2\_\_\_\_\_|           |                      |            |             |
+   |       | TX(P4\_1)|---------->|RX      FT232      USB|<---------->|USB          |
+   |       | RX(P4\_2)|<----------|TX                 GND|            |             |
+   |       `---------|           '----------------------'            |   TERMINAL  |
+   |                 |                                |              |  |        | |
+   |              GND|--------------------------------'              |  '--------' |
+   '-----------------'                                               '-------------'
+\end{DoxyPre}
+
+
+
+\begin{DoxyItemize}
+\item {\bfseries Run steps}\+:~\newline
+ To enable the demo go to the {\bfseries {\ttfamily config/default/userconfig.\+h}} file and set\+: 
+\begin{DoxyCode}
+\textcolor{preprocessor}{#define CFG\_DEMO\_AD\_UART        (1)}
+\end{DoxyCode}
+ Following macro has to be disabled due to pin conflicts\+: 
+\begin{DoxyCode}
+\textcolor{preprocessor}{#define CFG\_DEMO\_AD\_SPI         (0)}
+\textcolor{preprocessor}{#define CFG\_DEMO\_AD\_SPI\_I2C     (0)}
+\textcolor{preprocessor}{#define CFG\_DEMO\_SENSOR\_ADXL362 (0)}
+\end{DoxyCode}
+ After build and run the demo on the board a menu with the following options should appear. Expected result is described in each menu option below.
+\end{DoxyItemize}
+
+\subparagraph*{U\+A\+R\+T2 user 1}
+
+Enable a user 1 on U\+A\+R\+T2 -\/ this will be printing a message on the U\+A\+R\+T2 from the user every second.
+
+\subparagraph*{U\+A\+R\+T2 user 2}
+
+Enable a user 2 on U\+A\+R\+T2 -\/ this will be printing a message on the U\+A\+R\+T2 from the user 2 every half of a second.
+
+\subparagraph*{Lock U\+A\+R\+T2 for user X}
+
+Lock the U\+A\+R\+T2 for the user 1 or the user 2, then only one user may use U\+A\+R\+T2, the second user is blocked.
+
+\subparagraph*{Prompt from user X}
+
+Stop printing messages from users and wait for typing message from the selected user (X).
+
+\paragraph*{U\+A\+R\+T demo with concurrent access and queues}
+
+
+\begin{DoxyItemize}
+\item {\bfseries Demonstrated peripheral}\+: U\+A\+R\+T
+\item {\bfseries Source file}\+: demo\+\_\+uart\+\_\+printf.\+c
+\item {\bfseries Description\+:} ~\newline
+ The demo presents an example of printf-\/like calls which can be used to output data from the application over the U\+A\+R\+T2. It uses resource locking to properly handle concurrent access from different tasks. It uses also queues to implement asynchronous write requests, which is especially useful when called from a I\+S\+R.
+\item {\bfseries Pin-\/connections}\+: The same as in \textquotesingle{}U\+A\+R\+T demo with using O\+S abstraction layer\textquotesingle{} demo.
+\item {\bfseries Run steps}\+:~\newline
+ To enable the demo go to the {\bfseries {\ttfamily config/default/userconfig.\+h}} file and set\+: 
+\begin{DoxyCode}
+\textcolor{preprocessor}{#define CFG\_DEMO\_AD\_UART        (1)}
+\end{DoxyCode}
+ Following macro has to be disabled due to pin conflicts\+: 
+\begin{DoxyCode}
+\textcolor{preprocessor}{#define CFG\_DEMO\_AD\_SPI         (0)}
+\textcolor{preprocessor}{#define CFG\_DEMO\_AD\_SPI\_I2C     (0)}
+\textcolor{preprocessor}{#define CFG\_DEMO\_SENSOR\_ADXL362 (0)}
+\end{DoxyCode}
+ After build and run the demo on the board the same menu as in \textquotesingle{}U\+A\+R\+T demo with using O\+S abstraction layer\textquotesingle{} demo should appear.
+\end{DoxyItemize}
+
+\paragraph*{Wakeup timer}
+
+
+\begin{DoxyItemize}
+\item {\bfseries Demonstrated peripheral}\+: Wake-\/up timer
+\item {\bfseries Source file}\+: demo\+\_\+wkup.\+c
+\item {\bfseries Description\+:} ~\newline
+ The demo presents a timer used for capturing external events. It can be used as a wake-\/up trigger with a programmable number of external events on chosen G\+P\+I\+O and debounce time. After reaching the predetermined amount of events an interrupt is generated.
+\item {\bfseries Pin-\/connections}\+: There is no need to make any additional connections -\/ everything is available on the board.
+\item {\bfseries Run steps}\+:~\newline
+ To enable the demo go to the {\bfseries {\ttfamily config/default/userconfig.\+h}} file and set\+: 
+\begin{DoxyCode}
+\textcolor{preprocessor}{#define CFG\_DEMO\_HW\_WKUP      (1)}
+\end{DoxyCode}
+ Following macro has to be disabled due to pin conflicts\+: 
+\begin{DoxyCode}
+\textcolor{preprocessor}{#define CFG\_DEMO\_POWER\_MODE   (0)}
+\end{DoxyCode}
+ After build and run the demo on the board a menu with the following options should appear. Expected result is described in each menu option below.
+\end{DoxyItemize}
+
+\subparagraph*{Input configuration}
+
+Enable or disable G\+P\+I\+Os used by the wake-\/up (P3.\+0, P3.\+1, P3.\+2 by default) and set how they should be triggered -\/ high or low state. A wakeup interrupt should be generated in two cases\+:
+\begin{DoxyItemize}
+\item Connecting to G\+N\+D when the G\+P\+I\+O has the low state trigger,
+\item Disconnecting from G\+N\+D when the G\+P\+I\+O has the high state trigger. When the interrupt is generated, then in the terminal a \char`\"{}\+Wake up interrupt triggered\char`\"{} notification is shown.
+\end{DoxyItemize}
+
+\subparagraph*{Timer configuration}
+
+Set a threshold and a debounce time.
+
+The threshold determines how many times the state on the G\+P\+I\+O has to be changed to generate the interrupt, e.\+g. for 5 events the state of the pin is to be changed five times to fire the interrupt (see \char`\"{}\+Wake up interrupt triggered\char`\"{}).
+
+From the moment the trigger is fired for the chosen pin, the wake-\/up timer counts down every millisecond. When zero is reached, and the key (the G\+P\+I\+O) is still pressed (i.\+e. has the same state) the event counter will be incremented. After the key is released and pressed once again the above operation will be repeated. The debounce time in this case is the time from which the timer starts counting down. It allows better stabilizing state of the pin. The longer the debounce time the less often the state of the pin is checked.
+
+\subparagraph*{Reset timer counter}
+
+The event counter is set to 0.
+
+\subparagraph*{Emulate key hit}
+
+In this case the debounce time has to be disabled in a timer configuration. This simply emulates a button pressing action (an additional option instead of using wire and the chosen pin) causing the event counter to be incremented. When the predetermined amount of events is reached then the interrupt is fired.
+
+\subparagraph*{Get timer state}
+
+Show active pins -\/ they can be changed in gpio\+\_\+setup.\+h. This option also shows the threshold, debounce time and counter values. The counter in this case is not used for counting how many times interrupt was fired but it is used for counting events before the interrupt is generated e.\+g. for 5 events threshold when state of the pin is changed 3 times then counter should be equal to 3. When interrupt is fired then counter is reset and his value equals 0.
+
+The following configurations on wake-\/up timer are used in this example\+:
+\begin{DoxyItemize}
+\item Threshold counter\+: get/set the amount of events after that interrupt is generated
+\item Debounce time\+: time after each state of a key press/release is checked
+\item Trigger\+: set pins that triggers the wake-\/up and increments the counter. It can be triggered by low or high state of the pin (depends of settings)
+\end{DoxyItemize}
+
+\subsection*{Installation procedure}
+
+The project is located in the {\bfseries {\ttfamily projects/dk\+\_\+apps/demos/peripherals\+\_\+demo}} folder.
+
+To install the project follow the General Installation and Debugging Procedure.
+
+\subsection*{Suggested Configurable parameters}
+
+Suggested configurable parameters are localized in the {\ttfamily config/default/userconfig.\+h} file. When changing configuration is needed, it is recommended to copy that file to {\ttfamily config/userconfig.\+h} and make changes there -\/ it will be used instead of the previous one.
+
+\subsubsection*{Selecting demos}
+
+In {\ttfamily userconfig.\+h} there are a lot of demo \#defines (macros) like e.\+g 
+\begin{DoxyCode}
+\textcolor{preprocessor}{#define CFG\_DEMO\_HW\_TIMER2      (0)}
+\textcolor{preprocessor}{#define CFG\_DEMO\_HW\_WKUP        (1)}
+\textcolor{preprocessor}{#define CFG\_DEMO\_HW\_BREATH      (0)}
+\end{DoxyCode}
+ 
+\begin{DoxyCode}
+\textcolor{preprocessor}{#define CFG\_DEMO\_SENSOR\_BH1750  (0)}
+\textcolor{preprocessor}{#define CFG\_DEMO\_SENSOR\_BME280  (1)}
+\end{DoxyCode}
+ if macro has (0) value then it is inactive, if (1) it is active but keep in mind that there is no possibility to run all demos simultaneously!
+
+\subsubsection*{End of line}
+
+In {\ttfamily userconfig.\+h} it is also possible to set the {\bfseries C\+F\+G\+\_\+\+U\+A\+R\+T\+\_\+\+U\+S\+E\+\_\+\+C\+R\+L\+F} flag which defines a newline sequence. If it is set to 1, \char`\"{}\textbackslash{}r\textbackslash{}n\char`\"{} is used as the newline sequence, otherwise \char`\"{}\textbackslash{}n\char`\"{}. It supports terminals which do not handle properly a \char`\"{}\textbackslash{}n\char`\"{} endline sign.
+
+\subsubsection*{G\+P\+I\+O assignments}
+
+It is recommended to copy the {\ttfamily gpio\+\_\+setup.\+h} file to {\ttfamily config/gpio\+\_\+setup.\+h} and make changes there. Peripheral defines can be set with H\+W\+\_\+\+G\+P\+I\+O\+\_\+\+P\+O\+R\+T\+\_\+x and H\+W\+\_\+\+G\+P\+I\+O\+\_\+\+P\+I\+N\+\_\+x e.\+g.
+
+
+\begin{DoxyCode}
+\textcolor{preprocessor}{#define CFG\_GPIO\_IR\_PORT                (HW\_GPIO\_PORT\_3)}
+\textcolor{preprocessor}{#define CFG\_GPIO\_IR\_PIN                 (HW\_GPIO\_PIN\_7)}
+\end{DoxyCode}
+
+
+This configures port 3 with pin 7 as G\+P\+I\+O for I\+R generator.
+
+\subsection*{Manual testing}
+
+Select from the text-\/based menu, in a serial terminal, the demo which is to be tested. Configure a peripheral (optional) and run the proper action. Check if performed action is consistent with the description and specification.
+
+\subsection*{Known limitations}
+
+The correct flag in the {\ttfamily userconfig.\+h} file has to be chosen carefully, keeping in mind that not all combinations are allowed due to memory and G\+P\+I\+O restrictions. Therefore correct demos should be chosen or G\+P\+I\+O configuration should be adjusted to build the project. As a result it has to be remembered that\+:
+
+
+\begin{DoxyItemize}
+\item To enable I2\+C, I2\+C\+\_\+async or I2\+C sensors demo the Timer2, G\+P\+A\+D\+C and G\+P\+A\+D\+C adapter demos have to be disabled (they use the same G\+P\+I\+Os).
+\item To enable demos which use S\+P\+I interface, Breath, Timer2, Q\+U\+A\+D and U\+A\+R\+T demos have to be disabled.
+\item To enable the Q\+U\+A\+D demo, the U\+A\+R\+T demo should be disabled.
+\item Timer2 can\textquotesingle{}t be run simultaneously with A\+D\+X\+L362 sensor demo.
+\item U\+A\+R\+T, I2\+C demos require bigger than the standard stack size which applies to the amount limitations of running demos (the best way is to run the demos when other demos are shut down, but there is also a possibility to run them with selecting demos which do not cause stack overflow).
+\end{DoxyItemize}
+
+The best way is to use one demo, check how it works, turn it off and turn on another one but it is not a demand.
+
+Some demos require external devices e.\+g\+:
+
+
+\begin{DoxyItemize}
+\item Sensors\textquotesingle{} demos need the sensor board (D\+A14680\+\_\+\+Sensor\+\_\+\+Board),
+\item I2\+C and I2\+C async demos require F\+M75 and E\+E\+P\+R\+O\+M memory devices which must be connected to the I2\+C interface,
+\item S\+P\+I demo, S\+P\+I and I2\+C demo require A\+T45\+D\+B011\+D (F\+L\+A\+S\+H memory) and 24xx256 (E\+E\+P\+R\+O\+M memory) which must be connected externally -\/ they are not placed on the development board.
+\item U\+A\+R\+T demo requires U\+A\+R\+T$<$-\/$>$U\+S\+B converter e.\+g. F\+T232. 
+\end{DoxyItemize}

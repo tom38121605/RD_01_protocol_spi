@@ -1,0 +1,8 @@
+1. 测试程序：
+ C:\Program Files (x86)\SEGGER\JLink_V512f\JLinkRTTClient.exe 
+
+2. 要在debug模式下测试
+
+3. 要接示波器地线和cs线 （以免dos命令下不断刷屏）
+
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        

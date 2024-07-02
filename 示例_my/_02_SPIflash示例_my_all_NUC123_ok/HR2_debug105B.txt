@@ -1,0 +1,166 @@
+
+
+iputs("pairkey--01.\r\n");  //--zz debug
+
+
+
+ipconfig /flushdns
+
+======================================
+
+#define M25P80_WRENABLE    0X06
+#define M25P80_WRDISABLE    0X04
+#define M25P80_PAGE_PROG    0X02
+#define M25P80_RDSTATUS      0X05
+#define M25P80_RDSR        0X05
+#define M25P80_WRSR        0X01
+#define M25P80_RDDATA      0X03
+#define M25P80_FRDDATA      0X0B  
+#define M25p80_SE        0xD8
+#define M25p80_BE        0xC7
+
+---
+
+#define WREN  0X06           //写使能
+#define WRDI  0X04           //写禁止
+#define RDSR  0X05           //读状态寄存器
+#define WRSR  0X01          //写状态寄存器，WEL为0不允许写
+#define READ  0X03           //读字节
+#define FAST_READ 0X0B    //快读指令
+#define PP  0X02                //页写指令
+#define SE  0XD8               //区域擦除
+#define BE  0XC7               //批擦除
+#define DP  0XB9               //深度掉电模式
+#define RES  0XAB              //从深度掉电模式苏醒
+
+
+---------------------------------------------------
+
+#define SPI_CNTRL_SLAVE_Pos        18                                   
+#define SPI_CNTRL_SLAVE_Msk        (1ul << SPI_CNTRL_SLAVE_Pos)         
+#define SPI_MASTER                  (0UL << SPI_CNTRL_SLAVE_Pos)    
+
+#define SPI_CNTRL_TX_BIT_LEN_Pos   3  
+#define SPI_CNTRL_TX_BIT_LEN_Msk   (0x1Ful << SPI_CNTRL_TX_BIT_LEN_Pos)    //  7：3 =11111
+
+#define SPI_TX_BIT_LEN(x)       x << SPI_CNTRL_TX_BIT_LEN_Pos     //--zz
+
+
+static __INLINE void SPI_SET_TX_BIT_LEN(SPI_T *port,uint32_t x) 
+{
+    ((port)->CNTRL = (port)->CNTRL&(~SPI_CNTRL_TX_BIT_LEN_Msk)| SPI_TX_BIT_LEN(x));
+}
+
+
+---
+
+typedef enum
+ {
+  SPI_TYPE0=0x004,
+  SPI_TYPE1=0x002,
+  SPI_TYPE2=0x804,
+  SPI_TYPE3=0x802,
+} SPI_TRANS_TYPE;
+
+
+#define SPI_CNTRL_TX_NEG_Pos       2                                   
+#define SPI_CNTRL_TX_NEG_Msk       (1ul << SPI_CNTRL_TX_NEG_Pos)        
+
+#define SPI_CNTRL_RX_NEG_Pos       1                                 
+#define SPI_CNTRL_RX_NEG_Msk       (1ul << SPI_CNTRL_RX_NEG_Pos)      
+  
+static __INLINE void SPI_Waveform(SPI_T *SpiPort, SPI_TRANS_TYPE eType)
+{   
+    SpiPort->CNTRL = (SpiPort->CNTRL&~(SPI_CNTRL_TX_NEG_Msk|SPI_CNTRL_RX_NEG_Msk)) | eType;
+}
+
+---
+
+#define SPI_CNTRL_LSB_Pos          10   
+#define SPI_CNTRL_LSB               (1UL << SPI_CNTRL_LSB_Pos)       
+
+static __INLINE void SPI_SET_MSB_FIRST(SPI_T *port) 
+{
+    ((port)->CNTRL &= ~SPI_CNTRL_LSB);
+}
+
+
+
+---
+
+#define SPI_CNTRL_REORDER_Pos      19   
+#define SPI_REORDER                 (1UL << SPI_CNTRL_REORDER_Pos) 
+
+static __INLINE void SPI_DISABLE_REORDER(SPI_T *port)
+{
+    ((port)->CNTRL &= ~SPI_REORDER);
+}
+
+---
+
+#define SPI_CNTRL2_BCn_Pos   31  
+#define SPI_BCn                   (1UL << SPI_CNTRL2_BCn_Pos)  
+
+#define SPI_DIVIDER_DIVIDER_Pos    0                                 
+#define SPI_DIVIDER_DIVIDER_Msk    (0xFFul << SPI_DIVIDER_DIVIDER_Pos) 
+
+static __INLINE void SPI_ENABLE_BCN(SPI_T *port)
+{
+    ((port)->CNTRL2 &= ~SPI_BCn);
+}
+
+static __INLINE void SPI_SET_DIVIDER(SPI_T *port,uint8_t u8div)
+{
+    ((port)->DIVIDER =(port)->DIVIDER & (~SPI_DIVIDER_DIVIDER_Msk)| u8div);
+}
+
+---
+
+#define SPI_SSR0             (1UL << 0)  
+static __INLINE void SPI_CLR_SS0(SPI_T *port)
+{
+    ((port)->SSR &= (~SPI_SSR0));
+}
+
+---
+
+#define SPI_CNTRL_REORDER_Pos      19  
+#define SPI_REORDER                 (1UL << SPI_CNTRL_REORDER_Pos) 
+static __INLINE void SPI_DISABLE_REORDER(SPI_T *port)
+{
+    ((port)->CNTRL &= ~SPI_REORDER);
+}
+
+---
+#define M25P80_RDDATA      0X03
+
+---
+
+#define SPI_CNTRL_GO_BUSY_Pos      0 
+#define SPI_GO_BUSY                 (1UL << SPI_CNTRL_GO_BUSY_Pos)
+static __INLINE void SPI_SET_GO(SPI_T *port)
+{
+    ((port)->CNTRL |= SPI_GO_BUSY);
+}
+
+
+
+
+
+
+
+
+
+
+
+
+==============================================
+
+int iSize = 1000;    
+int* num = new int[iSize]; 
+memset(num,0,sizeof(int)*iSize); 
+//... 
+delete [] num;
+
+
+

@@ -1,0 +1,67 @@
+
+typedef struct
+{
+        uint8_t         pin;    
+        HW_GPIO_MODE    mode;    
+        HW_GPIO_FUNC    func;    
+        bool            high;     
+        bool            reserve;  
+} __attribute__((packed))   gpio_config;
+
+
+static const gpio_config wrbl_gpio_cfg[] = 
+{
+
+        /* UART2 */
+        HW_GPIO_PINCONFIG(UART2_TX_PORT        , UART2_TX_PIN        , OUTPUT_PUSH_PULL , UART2_TX, true),
+
+        /* UART1 */
+        HW_GPIO_PINCONFIG(UART_TX_PORT         , UART_TX_PIN         , OUTPUT_PUSH_PULL , UART_TX , true),
+        HW_GPIO_PINCONFIG(UART_RX_PORT         , UART_RX_PIN         , INPUT            , UART_RX , true),
+
+        /* SPI1 */
+        HW_GPIO_PINCONFIG(SPI1_CLK_GPIO_PORT   , SPI1_CLK_GPIO_PIN   , OUTPUT_PUSH_PULL , SPI_CLK , true),
+        HW_GPIO_PINCONFIG(SPI1_DO_GPIO_PORT    , SPI1_DO_GPIO_PIN    , OUTPUT_PUSH_PULL , SPI_DO  , true),
+        HW_GPIO_PINCONFIG(SPI1_DI_GPIO_PORT    , SPI1_DI_GPIO_PIN    , INPUT            , SPI_DI  , true),
+
+        /* SPI2 */
+        HW_GPIO_PINCONFIG(SPI2_CLK_PORT        , SPI2_CLK_PIN        , OUTPUT_PUSH_PULL , SPI2_CLK, false),
+        HW_GPIO_PINCONFIG(SPI2_DO_PORT         , SPI2_DO_PIN         , OUTPUT_PUSH_PULL , SPI2_DO , false),
+
+        /* I2C1 */
+        HW_GPIO_PINCONFIG(I2C1_SCL_PORT        , I2C1_SCL_PIN        , OUTPUT_OPEN_DRAIN, I2C_SCL , false),
+        HW_GPIO_PINCONFIG(I2C1_SDA_PORT        , I2C1_SDA_PIN        , OUTPUT_OPEN_DRAIN, I2C_SDA , false),
+
+        /* BMI160 */
+        HW_GPIO_PINCONFIG(BMI160_SPI_CS_PORT   , BMI160_SPI_CS_PIN   , OUTPUT_PUSH_PULL , SPI_EN  , true),
+
+        /* BME280 */
+        HW_GPIO_PINCONFIG(BME280_SPI_CS_PORT   , BME280_SPI_CS_PIN   , OUTPUT_PUSH_PULL , SPI_EN  , true),
+
+        /* LS013B7DH03 display */
+        HW_GPIO_PINCONFIG(LCD_SPI_CS_PORT      , LCD_SPI_CS_PIN      , OUTPUT_PUSH_PULL , GPIO    , true),
+
+        /* Vibration */
+        HW_GPIO_PINCONFIG(VIB_EN_PORT          , VIB_EN_PIN          , OUTPUT_PUSH_PULL , GPIO    , false),
+
+        /* LA66002 NFC */
+        HW_GPIO_PINCONFIG(LA66002_NFC_CLK_PORT  , LA66002_NFC_CLK_PIN  , OUTPUT_PUSH_PULL , PWM0    , false),
+        HW_GPIO_PINCONFIG(LA66002_NFC_VDDSE_PORT, LA66002_NFC_VDDSE_PIN, INPUT            , GPIO    , true),
+
+        /* IRQs */
+ 
+        HW_GPIO_PINCONFIG(BMI160_INT_1_PORT    , BMI160_INT_1_PIN    , INPUT_PULLUP     , GPIO    , true),
+        HW_GPIO_PINCONFIG(HW_BUTTON_PORT       , HW_BUTTON_PIN       , INPUT_PULLUP     , GPIO    , true),
+        HW_GPIO_PINCONFIG(DI5115_OPT_INT_2_PORT, DI5115_OPT_INT_2_PIN, INPUT_PULLUP     , GPIO    , true),
+        HW_GPIO_PINCONFIG(AB08X5_INT_D_PORT    , AB08X5_INT_D_PIN    , INPUT_PULLUP     , GPIO    , true),
+        HW_GPIO_PINCONFIG(SX9300_IRQ_PORT      , SX9300_IRQ_PIN      , INPUT_PULLUP     , GPIO    , true),
+ 
+
+        HW_GPIO_PINCONFIG(TP66_PORT            , TP66_PIN            , INPUT_PULLDOWN   , GPIO    , false),
+
+        HW_GPIO_PINCONFIG_END // important!!!
+};
+
+
+
+

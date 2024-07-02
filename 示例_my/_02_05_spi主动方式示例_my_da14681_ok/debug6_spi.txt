@@ -1,0 +1,163 @@
+
+
+main()
+
+   OS_TASK_CREATE("SysInit",  system_init,  0, 1024,  OS_TASK_PRIORITY_HIGHEST,  handle );              
+
+
+-------------------------------
+
+system_init()
+
+     prvSetupHardware();	
+
+    OS_TASK_CREATE( "Wearable Application",  wrbl_task, NULL, 250 * OS_STACK_WORD_SIZE, 1,  handle);   
+
+
+----------------------------
+
+spi1：
+
+DO:    P30
+DI:     P31
+CLK:   P32
+
+CS_DW1000:  扩展12
+
+
+static const gpio_config wrbl_gpio_cfg[] = {
+ 
+        /* SPI1 */
+        HW_GPIO_PINCONFIG(SPI1_CLK_GPIO_PORT   , SPI1_CLK_GPIO_PIN   , OUTPUT_PUSH_PULL , SPI_CLK , true),
+        HW_GPIO_PINCONFIG(SPI1_DO_GPIO_PORT    , SPI1_DO_GPIO_PIN    , OUTPUT_PUSH_PULL , SPI_DO  , true),
+        HW_GPIO_PINCONFIG(SPI1_DI_GPIO_PORT    , SPI1_DI_GPIO_PIN    , INPUT            , SPI_DI  , true),
+
+        /* SPI2 */
+        HW_GPIO_PINCONFIG(SPI2_CLK_PORT        , SPI2_CLK_PIN        , OUTPUT_PUSH_PULL , SPI2_CLK, false),
+        HW_GPIO_PINCONFIG(SPI2_DO_PORT         , SPI2_DO_PIN         , OUTPUT_PUSH_PULL , SPI2_DO , false),
+ 
+        /* BMI160 */
+        HW_GPIO_PINCONFIG(BMI160_SPI_CS_PORT   , BMI160_SPI_CS_PIN   , OUTPUT_PUSH_PULL , SPI_EN  , true),
+
+        /* BME280 */
+        HW_GPIO_PINCONFIG(BME280_SPI_CS_PORT   , BME280_SPI_CS_PIN   , OUTPUT_PUSH_PULL , SPI_EN  , true),
+
+        /* LS013B7DH03 display */
+        HW_GPIO_PINCONFIG(LCD_SPI_CS_PORT      , LCD_SPI_CS_PIN      , OUTPUT_PUSH_PULL , GPIO    , true),
+      
+
+        /* IRQs */
+ 
+        HW_GPIO_PINCONFIG(BMI160_INT_1_PORT    , BMI160_INT_1_PIN    , INPUT_PULLUP     , GPIO    , true),
+        //HW_GPIO_PINCONFIG(HW_BUTTON_PORT       , HW_BUTTON_PIN       , INPUT_PULLUP     , GPIO    , true),
+        //HW_GPIO_PINCONFIG(DI5115_OPT_INT_2_PORT, DI5115_OPT_INT_2_PIN, INPUT_PULLUP     , GPIO    , true),
+        //HW_GPIO_PINCONFIG(AB08X5_INT_D_PORT    , AB08X5_INT_D_PIN    , INPUT_PULLUP     , GPIO    , true),
+        //HW_GPIO_PINCONFIG(SX9300_IRQ_PORT      , SX9300_IRQ_PIN      , INPUT_PULLUP     , GPIO    , true),
+ 
+
+        HW_GPIO_PINCONFIG(TP66_PORT            , TP66_PIN            , INPUT_PULLDOWN   , GPIO    , false),
+
+        HW_GPIO_PINCONFIG_END // important!!!
+};
+
+
+
+
+======================== spi 简单示例参考   ok  =============================
+
+uart引脚：
+
+   tx -- p13 
+   rx -- p23
+
+spi引脚：
+
+   cs   -- p36
+   mo -- p37
+   mi  -- p40
+   sck -- p41
+
+static void system_init( void *pvParameters )
+{
+        cm_sys_clk_init(sysclk_XTAL16M);
+        cm_apb_set_clock_divider(apb_div1);
+        cm_ahb_set_clock_divider(ahb_div1);
+        cm_lp_clk_init();
+
+
+        sys_watchdog_init();
+
+        //prvSetupHardware();
+
+        //---串口引脚设置： tx -- p13， rx -- p23        (来自prvSetupHardware)
+
+        #define UART_TX_PORT    HW_GPIO_PORT_1
+        #define UART_TX_PIN     HW_GPIO_PIN_3
+        #define UART_RX_PORT    HW_GPIO_PORT_2
+        #define UART_RX_PIN     HW_GPIO_PIN_3
+
+        hw_gpio_configure_pin(UART_RX_PORT, UART_RX_PIN, HW_GPIO_MODE_OUTPUT, HW_GPIO_FUNC_GPIO, 1);
+        hw_gpio_set_pin_function(UART_TX_PORT, UART_TX_PIN, HW_GPIO_MODE_OUTPUT, HW_GPIO_FUNC_UART_TX);
+        hw_gpio_set_pin_function(UART_RX_PORT, UART_RX_PIN, HW_GPIO_MODE_INPUT, HW_GPIO_FUNC_UART_RX);
+
+
+        pm_system_init(periph_setup);
+
+        //--test--prvSetupHardware--end---
+
+        hw_gpio_configure_pin(4, 6, HW_GPIO_MODE_OUTPUT, HW_GPIO_FUNC_GPIO, 0);
+
+
+        //--from main task
+        console_init(SERIAL1, 256);
+
+        //printf( "\r\n12345\r\n" );   //--debuglog
+        //da_delay_count(10000);
+
+
+        //--------dw1000----spi---new test----------
+
+        //app_tasklist_create();
+
+        //--test decaspi
+        hw_gpio_configure_pin(3, 6, HW_GPIO_MODE_OUTPUT, HW_GPIO_FUNC_SPI_EN, 1);
+        hw_gpio_configure_pin(3, 7, HW_GPIO_MODE_OUTPUT, HW_GPIO_FUNC_SPI_DO, 0);
+        hw_gpio_set_pin_function(4, 0, HW_GPIO_MODE_INPUT, HW_GPIO_FUNC_SPI_DI);
+        hw_gpio_configure_pin(4, 1, HW_GPIO_MODE_OUTPUT, HW_GPIO_FUNC_SPI_CLK, 0);
+
+
+        //dev_dw1000 = ad_spi_open(DW1000SPI);   //如果只用于读写，则只需打开这一句
+
+        //如果需要dw1000功能，则打开下面两句 
+        spi_set_rate_low();
+        dw1000_init();           
+
+        ilocaladdr=0x80;
+        da_delay_count(2000);
+
+        for(;;)
+        {
+                uint8_t ibuf[4]={0};
+
+                //----------------------read devid ---------------------------
+                dwt_readfromdevice(0x00,0,4,ibuf);
+                printf( "\r\nreg00: \r\n" );    //--debuglog
+                printf( "%X\r\n", ibuf[0] );    //--debuglog
+                printf( "%X\r\n", ibuf[1] );    //--debuglog
+                printf( "%X\r\n", ibuf[2] );    //--debuglog
+                printf( "%X\r\n", ibuf[3] );    //--debuglog
+                printf( "\r\n " );    //--debuglog
+
+                da_delay_count(45000);  //about 10Hz
+
+                dw1000_twr_measure(0);
+        }
+
+}
+
+
+
+
+
+
+

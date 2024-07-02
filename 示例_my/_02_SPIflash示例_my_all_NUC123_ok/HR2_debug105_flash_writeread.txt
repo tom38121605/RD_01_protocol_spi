@@ -1,0 +1,211 @@
+
+
+iputs("task--01.\r\n");  //--zz debug
+
+
+
+=============
+
+flow：
+
+SPI1初始化:     outStandby  --> spiFlashInit  --> DrvSPI_Init   
+
+spiFlashInit  -->  spiFlashRead
+
+
+
+=========SPI1时钟设置======================
+
+注意：  SPI1的时钟源可选PLL和HCLK  (当前的项目中，一般 HCLK = PLL/1 )
+           SPI1时钟源可由CNTRL2.31 和CLKSEL1.5来选择
+
+
+=========SPI1初始化======================
+
+main()
+
+   outStandby()
+       spiFlashInit()
+
+
+=========SPI1读取数据======================
+
+
+main()
+
+   outStandby()
+       spiFlashInit()
+            spiFlashRead(0, sizeof(sflash_info_cache), (u8*)&sflash_info_cache );  
+
+
+
+
+=========SPI1写数据======================
+
+
+void spiFlashInit()
+
+  GPIO_SPI1_SS0_PC8();                      //GPC_MFP |= (1<<8)      //--PC8做SPI用      
+  GPIO_SPI1_CLK_PC9();                     //GPC_MFP |= (1<<9)      //--PC9做SPI用
+  GPIO_SPI1_MOSI0_PC11();              //GPC_MFP |= (1<<11)     //--PC11做SPI用    (注意:  PC13也可选做SPI1的MO)
+  GPIO_SPI1_MISO0_PC10();              //GPC_MFP |= (1<<10)     //--PC10做SPI用    (注意:  PC12也可选做SPI1的MI )
+
+  SPI_SET_SS(SPI1, SPI_SS_LOW_TRIGGER, SPI_SW_SS);       //SPI1_SSR.2=0, SPI1_SSR.3=0     //--   片选信号为低电平，  手动片选
+  SPI_SET_SS0(SPI1);                                                        //SPI1_SSR.0=1    //--CS0为有效（手动片的情况下，CS0为手动片选） 
+                                                                                                                  (注意： 如果SPI1_SSR.1-0=11， 则CS0,CS1都有效，可控制2个相同的从机，一般可切换CS0,CS1有效)
+
+  DrvSPI_Init(SPI1, SPI_MASTER, SPI_TYPE2, 32);  //使能 SPI1 clock，spi复位，设置spi传输32位，设置 spi为主模式，设置空闲时clk为高电平， clk下降沿发送数据，clk上升沿接收数据 
+                                                                        注意： 在spi连25p80是SP_TYPE2（下降沿发送，上升沿接收，空闲时clk为高电平），
+                                                                                  而在spi连dw1000时是SPI_TYPE0（下降沿发送，上升沿接收，空闲时clk为低电平）
+
+  SPI_SET_MSB_FIRST(SPI1);             //SPI1_CNTRL.10=0    //--MSB优先
+  SPI_DISABLE_REORDER(SPI1);        //SPI1_CNTRL.19=0    //-- 禁用字节重排序功能  （待理解）
+
+  SPI_ENABLE_BCN(SPI1);              //SPI1_CNTRL2.31=0    //--时钟配置不向后兼容。SPI 串行时钟除以 (DIVIDER1+1)*2 ，细节请参考SPI_DIVIDER寄存器
+  SPI_SET_DIVIDER(SPI1, 1);           //DIVIDER.0-7=00000001 (n)，   spiclk=sysckl/ ( (n+1)*2)  = 73.x MHz /4 = 18.xxx MHZ
+
+  spiFlashRead(0, sizeof(sflash_info_cache), (u8*)&sflash_info_cache );    //读取音乐文件的头部，看一共有几首音乐，及每首音乐在flash中的位置  //读count个数据存放到databuf
+
+---
+
+SPI_MASTER:  0<<18
+SPI_TYPE2:     0x804
+
+int32_t DrvSPI_Init(SPI1, SPI_MASTER, SPI_TYPE2, 32)
+
+     APBCLK_ENABLE(CLK_SPI1);               //APBCLK.13=1,  使能 SPI1 clock  
+     SYS_RESET_IP2(SYS_RST_SPI1);           //IPRSTC2 | =（1<<13）;  IPRSTC2 & =~（1<<13）;  //1--SPI1复位，0--正常
+
+     if(i32BitLength == 32)
+         i32BitLength = 0;
+    
+    SPI_SET_TX_BIT_LEN(SpiPort, i32BitLength);       //SPI_CNTRL.3-7=00000, CNTRL,3-7=x        //--设置spi传输bit位数量
+    SPI_SET_MODE(SpiPort, SPI_MASTER);                    //SPI_CNTRL.18=0              //--设置 spi为主模式
+
+    SPI_Waveform(SpiPort, SPI_TYPE2);          //SPI_CNTRL.11-2-1=110    //空闲时clk为高电平， clk下降沿发送数据，clk上升沿接收数据  （待验证）
+    
+
+------------
+
+
+//从address地址开始读，读count个数据存放到databuf
+void spiFlashRead(u32 address, u32 count, u8* databuf )
+  
+  SF_CMD_READ(address);                //发送地址，从该地址处开始读数据  
+
+  for( ; index < count; index++)        //连续读取count个数据
+    spiSendWord(0xff,8);                   //读取8位数据
+    databuf[index] = SPI1->RX[0];
+  
+  SPI_CLR_SS0(SPI1);                         // SPI1_SSR.0=0   //清除片选 
+
+---
+
+#define SF_CMD_READ(addr)  
+
+  SPI_CLR_SS0(SPI1);                               //SPI1_SSR.0=0     //--取消片选CS0
+  SPI_DISABLE_REORDER(SPI1);               //CNTRL.19=0     //--禁用字节重排序功能
+  SPI_SET_SS0(SPI1);                               //SPI1_SSR.0=1     //--片选CS0 
+  spiSendWord(M25P80_RDDATA, 8);      //发送读数据标志03
+  spiSendWord(addr, 24);                      //发送flash地址
+  SPI_ENABLE_REORDER(SPI1);               //CNTRL.19=1     //--使能字节重排序功能
+
+---
+
+ static __inline void spiSendWord(u32 ulData, u32 ucLength)
+ 
+  SPI_SET_TX_BIT_LEN(SPI1, ucLength);    //CNTRL,3-7=x               //--设置spi传输bit位数量
+  SPI_WRITE_TX0(SPI1, ulData);              //TX[0] = ulData             //--把数据写入spi发送寄存器中        
+  SPI_SET_GO(SPI1);                              //CNTRL.0=1                  //--开始spi数据传输 （发送更贴切一点）
+  while(SPI_IS_BUSY(SPI1) != 0);             //--循环直到CNTRL.0=0
+ 
+-------------------------------------
+
+U32 spiFlashPageWrite(u32 address, u32 length, u8* databuf)
+  
+  SF_CMD_PAGEWRB(address&(~0xff));  //发送写命令和页写命令
+    
+  for(index = 0; index < length; index++)
+    spiSendWord(databuf[index],8);                // 把数据一个一个写入到缓冲区发送
+  
+  SF_CMD_DISWRITE();   //--终止写命令
+
+  SF_GET_STATUS();
+  while(flash_status&1)
+    SF_GET_STATUS();
+
+---
+
+#define SF_CMD_PAGEWRB(addr) 
+  SPI_CLR_SS0(SPI1);                       //关闭片选
+  SPI_DISABLE_REORDER(SPI1);       //取消字节重排序功能
+
+  SPI_SET_SS0(SPI1);                                  //开启片选
+  spiSendWord(M25P80_WRENABLE, 8);    //发送写命令
+  SPI_CLR_SS0(SPI1);                                 //关闭片选
+
+   __nop(); 
+
+  SPI_SET_SS0(SPI1);                                     //开启片选
+  spiSendWord(M25P80_PAGE_PROG, 8);      //发送页写命令
+  spiSendWord(addr, 24);                            //发送地址
+
+---
+
+#define SF_CMD_DISWRITE()	
+  SPI_CLR_SS0(SPI1);                        //关闭片选
+  SPI_DISABLE_REORDER(SPI1);        //取消字节重排序功能
+
+  SPI_SET_SS0(SPI1);                                       //开启片选
+  spiSendWord(M25P80_WRDISABLE, 8);        //发送终止写命令
+  SPI_CLR_SS0(SPI1);                                     //关闭片选
+
+
+---
+
+#define SF_GET_STATUS()		
+  SPI_CLR_SS0(SPI1);                            //关闭片选
+  SPI_DISABLE_REORDER(SPI1);            //取消字节重排序功能
+
+  SPI_SET_SS0(SPI1);                            //开启片选
+  spiSendWord(M25P80_RDSR, 8);        //写入状态命令
+  spiSendWord(0xff, 8);                          //传送状态
+  flash_status = SPI1->RX[0];                   //读取状态标志
+
+  SPI_CLR_SS0(SPI1);                              //关闭片选
+
+
+ 
+==========================参考===========================
+
+
+void writeFlashRecodeData()
+
+    if(flash_data_buf_mux == 2)
+      spiFlashPageWrite(flash_program_address, 256, (u8*)flash_data_buf1);
+    else
+      spiFlashPageWrite(flash_program_address, 256, (u8*)flash_data_buf2);
+
+    flash_program_address += 0x100;
+
+    if(flash_program_address >=  0x100000)
+      flash_recode_stop = TRUE;
+
+
+//=======================================
+
+
+
+
+
+
+
+    
+
+    
+
+  
+   
+  
+
+   

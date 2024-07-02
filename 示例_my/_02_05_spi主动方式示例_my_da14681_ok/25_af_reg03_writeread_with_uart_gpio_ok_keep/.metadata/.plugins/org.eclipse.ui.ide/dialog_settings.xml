@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<section name="Workbench">
+	<list key="installedFeatures">
+		<item value="com.dialog.templates.smartbond_feature:2.5.3.837"/>
+		<item value="gnu.io.rxtx.sdk:2.1.7.4_v20071016-417C7DP1Bh_eEaQJBrHBHg"/>
+		<item value="gnu.io.rxtx:2.1.7.4_v20071016-7B57e7UAXMAAqGAGf"/>
+		<item value="ilg.gnuarmeclipse.debug.gdbjtag.jlink:4.1.3.201702251311"/>
+		<item value="ilg.gnuarmeclipse.doc.user:1.1.1.201702251311"/>
+		<item value="ilg.gnuarmeclipse.managedbuild.cross:2.3.1.201702251311"/>
+		<item value="ilg.gnuarmeclipse.packs:2.2.2.201702251311"/>
+		<item value="ilg.gnuarmeclipse.templates.cortexm:1.3.1.201702251311"/>
+		<item value="org.eclipse.cdt.build.crossgcc:8.6.0.201502131403"/>
+		<item value="org.eclipse.cdt.debug.gdbjtag:8.6.0.201502131403"/>
+		<item value="org.eclipse.cdt.gdb:8.6.0.201502131403"/>
+		<item value="org.eclipse.cdt.sdk:8.6.0.201502131403"/>
+		<item value="org.eclipse.cdt:8.6.0.201502131403"/>
+		<item value="org.eclipse.emf.common:2.11.1.v20160208-0816"/>
+		<item value="org.eclipse.emf.ecore:2.11.2.v20160208-0816"/>
+		<item value="org.eclipse.epp.mpc:1.4.2.v20160210-2005"/>
+		<item value="org.eclipse.help:2.1.2.v20160212-1500"/>
+		<item value="org.eclipse.platform:4.5.2.v20160212-1500"/>
+		<item value="org.eclipse.rcp:4.5.2.v20160212-1500"/>
+		<item value="org.eclipse.tm.terminal.control.feature:4.0.0.201506040610"/>
+		<item value="org.eclipse.tm.terminal.feature:4.0.0.201506040610"/>
+		<item value="org.eclipse.tm.terminal.view.feature:4.0.0.201506040610"/>
+		<item value="org.gna.eclox.hot:0.10.1"/>
+		<item value="org.gna.eclox:0.10.1"/>
+		<item value="org.python.pydev.feature:5.2.0.201608171824"/>
+	</list>
+	<section name="ExternalProjectImportWizard">
+		<item value="false" key="WizardProjectsImportPage.STORE_NESTED_PROJECTS"/>
+		<item value="false" key="WizardProjectsImportPage.STORE_COPY_PROJECT_ID"/>
+		<item value="false" key="WizardProjectsImportPage.STORE_ARCHIVE_SELECTED"/>
+		<list key="WizardProjectsImportPage.STORE_DIRECTORIES">
+			<item value="F:\Awork_BLE5_DA14681\20170614_da_sdk\DA1468x_SDK_BTLE_v_1.0.8.1050.1"/>
+		</list>
+		<list key="WizardProjectsImportPage.STORE_ARCHIVES">
+			<item value=""/>
+		</list>
+	</section>
+</section>

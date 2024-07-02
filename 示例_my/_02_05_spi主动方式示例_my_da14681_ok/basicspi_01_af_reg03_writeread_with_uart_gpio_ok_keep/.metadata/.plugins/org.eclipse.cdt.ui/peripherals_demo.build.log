@@ -1,0 +1,34 @@
+18:24:44 **** Incremental Build of configuration DA14681-01-Release_QSPI for project peripherals_demo ****
+make --silent pre-build main-build 
+Generate linker scripts.
+ 
+Building file: ../main.c
+Invoking: Cross ARM C Compiler
+../main.c: In function 'dwt_writetodevice':
+../main.c:433:5: warning: implicit declaration of function 'ad_spi_transact_write' [-Wimplicit-function-declaration]
+     ad_spi_transact_write(dev, header, cnt, buffer, length);
+     ^
+../main.c: At top level:
+../main.c:252:13: warning: 'prvSetupHardware' defined but not used [-Wunused-function]
+ static void prvSetupHardware( void )
+             ^
+../main.c:91:13: warning: 'init_demos' defined but not used [-Wunused-function]
+ static void init_demos(void)
+             ^
+Finished building: ../main.c
+ 
+Building target: peripherals_demo.elf
+Invoking: Cross ARM C Linker
+Finished building target: peripherals_demo.elf
+ 
+Invoking: Cross ARM GNU Create Flash Image
+Finished building: peripherals_demo.bin
+ 
+Invoking: Cross ARM GNU Print Size
+   text	   data	    bss	    dec	    hex	filename
+  41116	     80	   5636	  46832	   b6f0	peripherals_demo.elf
+Finished building: peripherals_demo.siz
+ 
+
+18:26:02 Build Finished (took 1m:17s.914ms)
+

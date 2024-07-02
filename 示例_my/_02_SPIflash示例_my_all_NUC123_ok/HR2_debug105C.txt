@@ -1,0 +1,158 @@
+
+
+iputs("pairkey--01.\r\n");  //--zz debug
+
+
+
+======================================
+
+
+void SPI_Master_Init(void)
+                          
+  GPIO_SPI0();			                                //配置PC0-3为spi功能    
+  DrvSPI_Init(SPI0, SPI_MASTER, SPI_TYPE0,32);                     //使能 SPI1 clock，spi复位，设置spi传输32位，设置 spi为主模式，设置空闲时clk为低电平， clk下降沿发送数据，clk上升沿接收数据 
+
+  SPI_SET_DIVIDER(SPI0, 3);			    	    //spiclk=sysckl/ ( (n+1)*2)
+  SPI_SET_SS(SPI0, SPI_SS_LOW_TRIGGER, SPI_SW_SS);	     //不用自动片选
+
+
+---
+
+int32_t DrvSPI_Init(SPI_T *SpiPort, uint32_t u32Mode, SPI_TRANS_TYPE eType,  int32_t i32BitLength)
+
+      APBCLK_ENABLE(CLK_SPI1);               //使能 SPI1 clock  
+      SYS_RESET_IP2(SYS_RST_SPI1);           //IPRSTC2 | =（1<<13）;  IPRSTC2 & =~（1<<13）;  //1--SPI复位，0--正常
+
+    if(i32BitLength == 32)
+        i32BitLength = 0;
+    
+    SPI_SET_TX_BIT_LEN(SpiPort, i32BitLength);       //SPI_CNTRL.3-7=00000, CNTRL,3-7=x        //--设置spi传输bit位数量
+    SPI_SET_MODE(SpiPort, u32Mode);                    //SPI_CNTRL.18=0  , CNTR.18=0              //--设置 spi为主模式
+
+    SPI_Waveform(SpiPort, eType);          //SPI_CNTRL.11-2-1=010    //空闲时clk为低电平， clk下降沿发送数据，clk上升沿接收数据  （待验证）
+
+
+-------------------------------
+
+
+void Get_SPI_Flash_ID(void)
+
+    uint32_t ulDevice_ID, ulManufacturer_ID;
+
+    SPI_SET_SS0(SPI0);                             //片选CS0
+    SPI_Send_1W(0x90000000, 0x20);        //？    (待理解)       
+    while(SPI_IS_BUSY(SPI0) != 0);             //--循环直到CNTRL.0=0
+
+    SPI_Send_1W(0xFFFF, 0x10);                 //？   (待理解)          
+    while(SPI_IS_BUSY(SPI0) != 0);             //--循环直到CNTRL.0=0
+
+    SPI_CLR_SS0(SPI0);                             //--取消片选
+
+    ulDevice_ID = SPI_GET_RX0_DATA(SPI0) & 0x000000FF;                      //两次读的是同1个数据吗？   (待理解)       
+    ulManufacturer_ID = SPI_GET_RX0_DATA(SPI0) & 0x0000FF00;             //两次读的是同1个数据吗？  (待理解)       
+
+    ulManufacturer_ID >>= 8;
+    
+---
+
+void SPI_Send_1W(uint32_t ulData, uint8_t ucLength)
+
+    SPI_Length(ucLength);                   //CNTRL,3-7=x               //--设置spi传输bit位数量
+    SPI_WRITE_TX0(SPI0, ulData);        //TX[0] = ulData             //--把数据写入spi发送寄存器中    
+    SPI_SET_GO(SPI0);                        //CNTRL.0=1                  //--开始spi数据传输 （发送更贴切一点）
+
+
+---------------------------------------------------
+
+void Read_Page0_Data(void)
+
+    printf("Page0 Read Data, Data =\n");
+
+    SPI_SET_SS0(SPI0);                              //片选CS0
+    SPI_Send_1W(READ_DATAE, 0x08);       //发送读标志    
+    while(SPI_IS_BUSY(SPI0) != 0);             //等待发送结束
+
+    SPI_Send_1W(0x000000, 24);                //发送flash地址为000000
+    while(SPI_IS_BUSY(SPI0) != 0);              //等待发送结束
+
+    for(i=0; i<256; i++)       	             //读取256个数据                                                   
+        SPI_Send_1W(0xFF, 8);               //开始交换8位数据（1个字节）					    
+        while(SPI_IS_BUSY(SPI0) != 0);    //等待交换结束    
+        printf("%02x,",(SPI_GET_RX0_DATA(SPI0)&0x000000FF));   //读取1个字节数据，并打印出来
+
+    SPI_CLR_SS0(SPI0);                                 //取消片选
+
+
+--------------------------------------------------
+
+发送写命令  -->  发送页写命令  -->  发送地址  -->  发送数据  -->  关闭写标志
+
+void Program_Page0_Data(void)
+
+    SPI_SET_SS0(SPI0);                                 //开启片选
+    SPI_Send_1W(WRITER_ENABLE, 0x08);     //发送写命令06
+    while(SPI_IS_BUSY(SPI0) != 0);                //等待发送完成
+    SPI_CLR_SS0(SPI0);                                //关闭片选
+
+    SPI_SET_SS0(SPI0);                                 //开启片选
+    SPI_Send_1W(PAGE_PROGRAM, 0x08);     //发送页写命令02
+    while(SPI_IS_BUSY(SPI0) != 0);                 //等待发送完成
+
+    SPI_Send_1W(0x000000, 24);                  //发送地址
+    while(SPI_IS_BUSY(SPI0) != 0);                //等待发送完成
+
+    for(uiCounter1=0; uiCounter1<256; uiCounter1++)      
+        SPI_Send_1W(uiCounter1, 8);                 //发送数据
+        while(SPI_IS_BUSY(SPI0) != 0);               //等待发送完成
+  
+    SPI_CLR_SS0(SPI0);                                   //关闭片选
+                                                                                             
+    SPI_SET_SS0(SPI0);                                  //开启片选
+    SPI_Send_1W(WRITER_DISABLE, 0x08);     //关闭写标志
+    while(SPI_IS_BUSY(SPI0) != 0);                 //等待发送完成
+    SPI_CLR_SS0(SPI0);                                 //关闭片选
+ 
+
+--------------------------------------------------
+
+void Erase_All_Chip(void)   //整片擦除
+
+    SPI_SET_SS0(SPI0);                                    //开启片选
+    SPI_Send_1W(WRITER_ENABLE, 0x08);        //发送写命令
+    while(SPI_IS_BUSY(SPI0) != 0);                    //等待发送完成
+    SPI_CLR_SS0(SPI0);                                     //关闭片选
+  
+    SPI_SET_SS0(SPI0);                                    //开启片选
+    SPI_Send_1W(CHIP_ERASE, 0x08);               // 发送片擦除命令
+    while(SPI_IS_BUSY(SPI0) != 0);                    //等待发送完成
+    SPI_CLR_SS0(SPI0);                                    //关闭片选
+  
+    SPI_SET_SS0(SPI0);                                    //开启片选
+    SPI_Send_1W(WRITER_DISABLE, 0x08);        //关闭写标志
+    while(SPI_IS_BUSY(SPI0) != 0);                    //等待发送完成
+    SPI_CLR_SS0(SPI0);                                    //关闭片选
+
+=========================================================
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

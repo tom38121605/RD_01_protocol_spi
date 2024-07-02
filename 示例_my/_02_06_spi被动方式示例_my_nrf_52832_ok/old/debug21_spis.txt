@@ -1,0 +1,365 @@
+
+
+
+====================spis从初始化到数据读写整个过程================================
+
+main()
+
+    //   //设置spis的引脚，优先级，模式，MSB  (没有频率)
+    spis_config = NRF_DRV_SPIS_DEFAULT_CONFIG;
+
+    spis_config.csn_pin                = APP_SPIS_CS_PIN;            //29
+    spis_config.miso_pin              = APP_SPIS_MISO_PIN;       //28
+    spis_config.mosi_pin              = APP_SPIS_MOSI_PIN;       //4
+    spis_config.sck_pin                = APP_SPIS_SCK_PIN;          //3
+
+    nrf_drv_spis_init(&spis, &spis_config, spis_event_handler)
+
+    while (1)
+ 
+          nrf_drv_spis_buffers_set(&spis, m_tx_buf, m_length, m_rx_buf, m_length);
+
+          while (!spis_xfer_done)
+              __WFE();
+ 
+
+
+=================================spi 初始化====flow===============================
+
+
+spis初始配置flow：
+
+       spis_config = _DEFAULT_CONFIG(0)  --> spis = _SPI_INSTANCE(0)  
+
+       nrf_drv_spis_init  --> nrf_spis_pins_set  --> nrf_spi_configure --> nrf_spis_int_enable
+       --> nrf_spis_enable --> nrf_drv_common_irq_enable  
+
+-------------------------------------------------------------------------------------------------------------------------------------------
+
+
+main()
+
+    //   //设置spis的引脚，优先级，模式，MSB  (没有频率)
+    spis_config = NRF_DRV_SPIS_DEFAULT_CONFIG(SPIS_INSTANCE);  //SPIS_INSTANCE=1
+
+    spis_config.csn_pin                = APP_SPIS_CS_PIN;            //29
+    spis_config.miso_pin              = APP_SPIS_MISO_PIN;       //28
+    spis_config.mosi_pin              = APP_SPIS_MOSI_PIN;       //4
+    spis_config.sck_pin                = APP_SPIS_SCK_PIN;          //3
+
+    nrf_drv_spis_init(&spis, &spis_config, spis_event_handler)
+
+
+------- 
+
+   spis_config = NRF_DRV_SPIS_DEFAULT_CONFIG                            
+                                                                                           
+       .sck_pin      = 0xff,                                                                      // 3 
+       .mosi_pin     =  0xff,                                                                    // 4                  
+       .miso_pin     =  0xff,                                                                    //  28                      
+       .csn_pin      =  0xff,                                                                     // 29                
+          
+       .miso_drive   = NRF_DRV_SPIS_DEFAULT_MISO_DRIVE,                 //0 -- S0S1 标准驱动   //多此一举
+       .csn_pullup   = NRF_DRV_SPIS_DEFAULT_CSN_PULLUP,                  //0 -- csn nopull       //多此一举
+          
+       .orc          =  0xff,                                                                       // 0xff   -- 假数据                               
+       .def          = 0xff,                                                                        // 0xff   --待理解
+                                             
+       .mode         = (nrf_drv_spis_mode_t)SPIS_DEFAULT_MODE,             //0 --mode0
+       .bit_order    = (nrf_drv_spis_endian_t)SPIS_DEFAULT_BIT_ORDER,     //0  -- MSB
+       .irq_priority = SPIS_DEFAULT_CONFIG_IRQ_PRIORITY,                     //6        
+
+
+
+   //-----初始化取得默认的spix------
+
+   spis = NRF_DRV_SPIS_INSTANCE(SPIS_INSTANCE);     //SPIS_INSTANCE=1
+
+       .p_reg      =        NRF_SPIS1,        
+       .irq          =         SPIS1_IRQ ,             
+       .instance_id   =      SPIS1_INSTANCE_INDEX,     //0    
+ 
+
+
+---
+
+
+//设置中断函数， 设置spis模式，初始化spis的io口，配置spis的io口，模式为mode0， 设置为SPISLAVE，设置SPS1的中断优先级，使能SPIS1的中断 
+//参数列表： spis, spis_config, spis_event_handler
+nrf_drv_spis_init( *p_instance, *p_config, event_handler )
+ 
+    *p_cb = &m_cb[0];
+
+    p_spis =  NRF_SPIS1;
+ 
+    //MI引脚配置成输入 
+        nrf_gpio_cfg(p_config->miso_pin,
+                    NRF_GPIO_PIN_DIR_INPUT,               //输入
+                    NRF_GPIO_PIN_INPUT_CONNECT,
+                    NRF_GPIO_PIN_NOPULL,
+                    p_config->miso_drive,                      //标准驱动S0S1
+                    NRF_GPIO_PIN_NOSENSE);
+        miso_pin = p_config->miso_pin; 
+
+
+    //MO引脚配置 （输入 --？）
+        nrf_gpio_cfg(p_config->mosi_pin,
+                     NRF_GPIO_PIN_DIR_INPUT,
+                     NRF_GPIO_PIN_INPUT_CONNECT,
+                     NRF_GPIO_PIN_NOPULL,
+                     NRF_GPIO_PIN_S0S1,
+                     NRF_GPIO_PIN_NOSENSE);
+        mosi_pin = p_config->mosi_pin;
+ 
+
+    //CS引脚配置 （输入 --？）
+    nrf_gpio_cfg(p_config->csn_pin,
+                 NRF_GPIO_PIN_DIR_INPUT,
+                 NRF_GPIO_PIN_INPUT_CONNECT,
+                 p_config->csn_pullup,
+                 NRF_GPIO_PIN_S0S1,
+                 NRF_GPIO_PIN_NOSENSE);
+
+    //SCK引脚配置 （输入）
+    nrf_gpio_cfg(p_config->sck_pin,
+                 NRF_GPIO_PIN_DIR_INPUT,
+                 NRF_GPIO_PIN_INPUT_CONNECT,
+                 NRF_GPIO_PIN_NOPULL,
+                 NRF_GPIO_PIN_S0S1,
+                 NRF_GPIO_PIN_NOSENSE);
+    
+
+        //设置spi的io口
+        //nrf_spis_pins_set(p_spis, p_config->sck_pin, mosi_pin, miso_pin, p_config->csn_pin);      
+            NRF_SPIS1->PSELSCK  = 3;          //  设置sck为p3
+            NRF_SPIS1->PSELMOSI = 4;        //  设置mo为p4
+            NRF_SPIS1->PSELMISO = 28;        //  设置mi为28
+            NRF_SPIS1->PSELCSN = 29;         //  设置mi为29
+ 
+
+    //nrf_spis_rx_buffer_set(p_spis, NULL, 0);    //待理解
+       NRF_SPIS1->RXDPTR = NULL;
+       NRF_SPIS1->MAXRX  = 0;
+
+    //nrf_spis_tx_buffer_set(p_spis, NULL, 0);     //待理解
+       NRF_SPIS1->TXDPTR = NULL;
+       NRF_SPIS1->MAXTX  = 0;
+ 
+
+    //设置spi的模式为mode0，MSB在前
+    nrf_spis_configure(NRF_SPIS1, MODE0, MSB);  //NRF_SPIS1->CONFIG.2-1,0 = 00,0 ， 设置spi的模式为mode0，MSB在前
+
+    //设置def
+    nrf_spis_def_set(p_spis, p_config->def);
+        NRF_SPIS1->DEF = def;
+
+    //设置orc
+    //nrf_spis_orc_set(p_spis, p_config->orc);
+          NRF_SPIS1->ORC = orc;   //0xff
+
+    // 清除END事件，ACQUIRE事件
+    nrf_spis_event_clear(NRF_SPIS1, NRF_SPIS_EVENT_END);
+    nrf_spis_event_clear(NRF_SPIS1, NRF_SPIS_EVENT_ACQUIRED);
+
+    // 设置END 和 ACQUIRE的 shortcut  --待理解
+    //nrf_spis_shorts_enable(NRF_SPIS1, NRF_SPIS_SHORT_END_ACQUIRE);
+        NRF_SPIS1->SHORTS |= NRF_SPIS_SHORT_END_ACQUIRE;       //待理解
+
+
+    //设置spi的事件回调函数
+    m_cb[0].handler = event_handler;
+
+    //设置spis已初始化标志
+    m_cb[0].spi_state = SPIS_STATE_INIT;
+
+
+    //使能spi的END事件和ACQUIRED事件，以便调用回调函数
+    nrf_spis_int_enable(p_spis, NRF_SPIS_INT_ACQUIRED_MASK | NRF_SPIS_INT_END_MASK);
+
+    //设置spiS1的中断优先级，使能spiS1的中断 （SPIS1_IRQ）
+    //nrf_drv_common_irq_enable(SPIS1_IRQ, 6);   
+            NVIC_SetPriority(SPIS1_IRQ, priority);    //NVIC->IP[IRQn]  =  priority <<5 ,    设置spiS1中断的优先级        
+            NVIC_ClearPendingIRQ(SPIS1_IRQ);      //NVIC->ICPR[ IRQn >>5 ].IRQn = 1,  清除spiS1的中断标志   
+            NVIC_EnableIRQ(SPIS1_IRQ);                //NVIC->ISER[ IRQn>>5 ].IRQn = 1， 使能spiS1的中断      
+
+    p_cb->state = NRF_DRV_STATE_INITIALIZED;     //已初始化标志
+
+    //使能 SPIS xxx  (应是设为SPI SLAVE)
+    nrf_spis_enable(p_spis);  // NRF_SPIS1->ENABLE.0 = 2<<0,  使能 SPIS  
+
+
+
+
+
+================================spis 读写数据===flow================================
+
+
+ 要点：  set buff ， set acquire （本部分）  -->  等待中断  -->  处理中断 acquired，end  （下面中断部分）
+
+spis 读写数据flow：  
+
+
+ SPIS_STATE_INIT  -->  nrf_drv_spis_buffers_set  -->  spis_state_change  -->  spis_state_entry_action_execute  -->  nrf_spis_task_trigger  
+  -->  NRF_SPIS1 + TASKS_ACQUIRE =1  
+
+  -->  IRQ_HANDLER  -->  ......  --> spis_event_handler -->  spis_xfer_done=1   (待验证)
+ 
+
+---------------------------------------------------------------------------------------------------------------------------------------------------
+
+main()
+  
+    while (1)
+ 
+          nrf_drv_spis_buffers_set(&spis, m_tx_buf, m_length, m_rx_buf, m_length);
+
+          while (!spis_xfer_done)
+              __WFE();
+ 
+
+--------------------------
+
+//功能：设置tx，rx的buf，并设置获取信号量acquired的请求  --> 然后等待acquired事件
+//参数： spis, m_tx_buf, m_length, m_rx_buf, m_length 
+nrf_drv_spis_buffers_set( p_instance, * p_tx_buffer,  tx_buffer_length, * p_rx_buffer, rx_buffer_length)
+
+    p_cb = &m_cb[0]; 
+
+    switch (p_cb->spi_state)    //目前是 SPIS_STATE_INIT
+
+        case SPIS_STATE_INIT:
+        //case SPIS_XFER_COMPLETED:
+        //case SPIS_BUFFER_RESOURCE_CONFIGURED:
+            p_cb->tx_buffer      = p_tx_buffer;
+            p_cb->rx_buffer      = p_rx_buffer;
+            p_cb->tx_buffer_size = tx_buffer_length;
+            p_cb->rx_buffer_size = rx_buffer_length;
+            err_code             = NRF_SUCCESS;
+
+            //spis_state_change( NRF_SPIS1, p_cb, SPIS_BUFFER_RESOURCE_REQUESTED);
+                  p_cb->spi_state =SPIS_BUFFER_RESOURCE_REQUESTED;
+
+                  //spis_state_entry_action_execute( NRF_SPIS1, p_cb );
+                        case SPIS_BUFFER_RESOURCE_REQUESTED:
+                             nrf_spis_task_trigger(NRF_SPIS1, NRF_SPIS_TASK_ACQUIRE);   // NRF_SPIS1 + 偏移量 =1，获取信号量    --待理解
+
+
+        //case SPIS_BUFFER_RESOURCE_REQUESTED:
+        //    err_code = NRF_ERROR_INVALID_STATE;
+
+
+
+
+==============================中断函数的调用===flow============================
+
+
+ 要点：  set buff ， set acquire （上面部分）  -->  等待中断  -->  处理中断 acquired，end  （本部分）
+
+中断函数flow：
+
+     #define IRQ_HANDLER(0)     SPI0_IRQ_HANDLER( )
+
+     SPIM1_SPIS1_TWIM1_TWIS1_SPI1_TWI1_IRQHandler -->  SPI1_TWI1_IRQHandler  -->  SPIS1_IRQ_HANDLER  --> IRQ_HANDLER(1)
+
+     //IRQ_HANDLER(1) -->irq_handler_spi -->  transfer_byte -->  finish_transfer --> spi_event_handler
+
+
+------------
+
+//spis中断函数入口
+IRQ_HANDLER(1)                                  
+        spis_irq_handler(NRF_SPIS1, &m_cb[0]);         
+ 
+---
+
+//中断事件处理 acquired，end
+//参数列表： NRF_SPIS1， p_cb->handler （spis_event_handler）
+spis_irq_handler( * p_spis,  * p_cb)
+
+    // 如果是 acquired 事件.
+    if (nrf_spis_event_check(p_spis, NRF_SPIS_EVENT_ACQUIRED))
+ 
+        nrf_spis_event_clear(p_spis, NRF_SPIS_EVENT_ACQUIRED);   //清除acquired事件标志
+
+        switch (p_cb->spi_state) 
+            case SPIS_BUFFER_RESOURCE_REQUESTED:
+
+                //nrf_spis_tx_buffer_set(NRF_SPIS1, p_cb->tx_buffer, p_cb->tx_buffer_size);
+                    p_reg->TXDPTR = p_cb->tx_buffer;
+                    p_reg->MAXTX  = length;
+
+                //nrf_spis_rx_buffer_set(NRF_SPIS1, p_cb->rx_buffer, p_cb->rx_buffer_size);
+                    p_reg->RXDPTR = p_cb->rx_buffer;
+                    p_reg->MAXRX  = length;
+
+                nrf_spis_task_trigger(NRF_SPIS1, NRF_SPIS_TASK_RELEASE);      // NRF_SPIS1 + 偏移量 =1，释放信号量    --待理解
+
+
+                //spis_state_change(p_spis, p_cb, SPIS_BUFFER_RESOURCE_CONFIGURED);
+                    p_cb->spi_state =SPIS_BUFFER_RESOURCE_CONFIGURED;
+
+                    //spis_state_entry_action_execute( NRF_SPIS1, p_cb );
+                          case SPIS_BUFFER_RESOURCE_CONFIGURED:
+                               event.evt_type  = NRF_DRV_SPIS_BUFFERS_SET_DONE;
+                               event.rx_amount = 0;
+                               event.tx_amount = 0;
+                               p_cb->handler(event);
+
+                            break; 
+
+            default:
+                // No implementation required.
+                break;
+
+ 
+    // 如果是end事件  （已传输完成）
+    if (nrf_spis_event_check(p_spis, NRF_SPIS_EVENT_END))     //清除end事件标志
+         nrf_spis_event_clear(p_spis, NRF_SPIS_EVENT_END);    //清除end事件标志
+
+        switch (p_cb->spi_state)
+ 
+            case SPIS_BUFFER_RESOURCE_CONFIGURED:
+
+                //spis_state_change(p_spis, p_cb, SPIS_XFER_COMPLETED);
+                    p_cb->spi_state = SPIS_XFER_COMPLETED;
+
+                    //spis_state_entry_action_execute( NRF_SPIS1, p_cb );
+                          case SPIS_XFER_COMPLETED:
+                                event.evt_type  = NRF_DRV_SPIS_XFER_DONE;
+                                event.rx_amount = nrf_spis_rx_amount_get(p_spis);
+                                event.tx_amount = nrf_spis_tx_amount_get(p_spis);
+                                p_cb->handler(event);
+                break;
+
+            default:
+                 break;
+ 
+---
+
+
+//人工定义的spis回调函数
+ spis_event_handler( event)
+ 
+     if (event.evt_type == NRF_DRV_SPIS_XFER_DONE) 
+         spis_xfer_done = true;
+         NRF_LOG_INFO(" Transfer completed. Received: %s\r\n",(uint32_t)m_rx_buf);
+
+
+
+
+
+=========================== ======== 参考  keep ============================ ==================
+
+
+
+
+nrf_drv_spis_buffers_set( p_instance, * p_tx_buffer,  tx_buffer_length, * p_rx_buffer, rx_buffer_length)
+
+    p_cb = &m_cb[0]; 
+
+    // 检查buf变量，确定要在 Data RAM region内，以便 EasyDMA 使用             --先忽略
+    if ( ( !nrf_drv_is_in_RAM(p_tx_buffer) ||  (!nrf_drv_is_in_RAM(p_rx_buffer) )
+         return NRF_ERROR_INVALID_ADDR;
+ 
+
+

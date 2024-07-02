@@ -1,0 +1,52 @@
+
+iputs("pairkey--01.\r\n");  //--zz debug
+
+
+======================================  
+
+#define SPI_Master      0
+#define SPI_Slave       1
+
+#define WRITER_ENABLE   0x06
+#define WRITER_DISABLE  0x04
+#define READ_DATAE      0x03
+#define PAGE_PROGRAM    0x02
+#define CHIP_ERASE      0xC7
+
+.\output\THEone.axf: Error: L6218E: Undefined symbol flg_playing (referred from i2s_spi.o).
+-------------------------------
+
+static __INLINE void GPIO_SPI0()
+{
+    outpw(&SYS->GPC_MFP, inpw(&SYS->GPC_MFP) | (0xF<<0));     //配置PC0-3为spi功能   
+    outpw(&SYS->ALT_MFP, inpw(&SYS->ALT_MFP) & ~(0xF<<5));   //配置PC0-3为spi功能   
+}
+
+
+static __INLINE uint32_t SPI_GET_RX0_DATA(SPI_T *port)
+{
+    return ((port)->RX[0]);
+}
+==============================================================
+
+
+Program Size: Code=29148 RO-data=332 RW-data=3324 ZI-data=4420  
+
+Program Size: Code=29072 RO-data=332 RW-data=3324 ZI-data=4420       --ok
+
+Program Size: Code=28856 RO-data=332 RW-data=3324 ZI-data=4420  
+
+Program Size: Code=28932 RO-data=332 RW-data=3324 ZI-data=4420  
+
+
+
+
+
+
+
+
+
+
+
+
+

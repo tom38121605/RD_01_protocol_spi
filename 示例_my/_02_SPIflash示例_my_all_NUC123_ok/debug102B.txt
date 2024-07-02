@@ -1,0 +1,395 @@
+
+
+iputs("pairkey--01.\r\n");  //--zz debug
+
+
+
+
+-----20个cofest数据 -------
+
+00 01   00 00   00 02   00 ff    00 00
+00 00   c0 00   40 00   f0 00   00 00
+cc 01   30 ff    88 01   18 ff    50  00
+00 ff    59 42   a6 77   76 25   a5 77
+
+-----20个cofest数据 ---10進制----
+
+256   0   
+512   -256    
+0 0  
+192   64
+240   0
+460   -208   
+392   -232    
+   
+
+-----20个cofest数据 --16進制-----
+
+100   00            -- use
+?   -100         -- use
+00      00
+c0     40  
+f0     00
+1cc    -D0          -- use
+188    -E8    
+
+
+int AdaptationTable [] =
+ { 
+  230, 230, 230, 230, 307, 409, 512, 614, 
+  768, 614, 512, 409, 307, 230, 230, 230 
+} ;
+
+
+
+=========================================================
+  
+
+#define POWER_ON_SOUND      15
+#define POWER_ON_PAIRING_SOUND  15
+#define POWER_OFF_SOUND      10
+#define DISCONECTED_SOUND      7
+#define DD_SOUND          17
+#define PAIRED_SOUND        6
+#define PAIRING_SOUND        8
+#define BATTERY_LOW_SOUND      4
+#define BATTERY_LOW_CHARING_SOUND  3
+#define AUTO_PLAY_ACTIVATE_SOUND    0
+#define AUTO_PLAY_DEACTIVATE_SOUND  1
+#define BATHROOM_SOUND      2
+#define BEDROOM_SOUND        5
+#define CHARGING_SOUND        9
+#define HIDDENRADIO_SOUND      11
+#define KITCHEN_SOUND        12
+#define LEFT_CHANNEL_SOUND    13
+#define LIVING_ROOM_SOUND      14
+#define RIGHT_CHANNEL_SOUND    16
+
+#define Z0_S              18
+#define ZDOT_S            28 
+#define Z_V_S            29
+#define Z_RESET_S          30
+ 
+
+======filename.txt==============
+autoplay_activated.wav            //--0
+autoplay_deactivated.wav
+bathroom.wav
+battery_charging_final.wav
+battery_low_final.wav
+bedroom.wav            //--5
+bt_connected.wav
+bt_disconnected.wav
+bt_searching.wav
+charging_sound.wav
+closing_sound.wav            //--10
+hiddenradio2.wav
+kitchen.wav
+left_channel.wav
+living_room.wav
+opening_sound.wav            //--15
+right_channel.wav
+tic_sound.wav
+z_0.wav
+z_1.wav
+z_2.wav            //--20
+z_3.wav
+z_4.wav
+z_5.wav
+z_6.wav
+z_7.wav            //--25
+z_8.wav
+z_9.wav
+z_dot.wav
+z_firmware_version.wav
+z_reset.wav            //--30
+
+   
+
+==============================================
+
+
+------------------------------Header结构flow-------------------------------------
+
+file header  -->   music header  --> block header
+
+
+
+------- file header ------
+
+//下面2个结构应可考虑合并为一个结构
+#define TOTAL_MUSIC_COUNT    40
+typedef struct music_data_zu
+{
+  U32  count;                                                 //指flash里面有几首音乐
+  u32 address[TOTAL_MUSIC_COUNT];           //每首音乐在flash中的对应地址
+}SFLASH_MUISC_INFO;
+
+typedef struct Sflash_info
+{
+  u32 falsh_sn;                            //序列号：0x4E534C47
+  SFLASH_MUISC_INFO info;
+}SFLASH_INFO;
+
+SFLASH_INFO sflash_info_cache;
+
+
+
+------- music header ------
+
+typedef struct    //其中一曲具体音乐的头部分     //--46个字节
+{
+    u16  data_block_size;        //数据块的大小
+    u16  data_block_count;     // 数据块的个数
+    u16  cofe_num;                 //  --seems nouse
+    s16  cofe_sets[20];            // 解压用的第1个钥匙参数
+}ADPCMFILEHEADER;
+
+static ADPCMFILEHEADER file_head;
+
+
+
+------- block header ------
+
+---block头部段：参考adpcmDecode
+ 
+           2 字节  --  用来求cofe值 （以后不变）
+           4个字节  --  用来求delta初值   （以后变化）
+           4个字节  --  为sample0
+           4个字节  --  为sample1
+
+   
+=============
+
+
+SF_CMD_READ(addr)  
+        
+  SPI_CLR_SS0(SPI1);                              //  SSR.0=0   //清除片选 （待理解）
+  SPI_DISABLE_REORDER(SPI1);              // CNTRL.19=0  //禁用字节重排序功能 （待理解）
+  SPI_SET_SS0(SPI1);                              //  SSR.0=1   //开启片选 
+
+  spiSendWord(M25P80_RDDATA, 8);    //发送0x03（1个字节）到flash芯片， 表示要读数据了（待验证）
+  spiSendWord(addr, 24);                    //发送addr地址（3个字节）到flash芯片， 表示读数据的起始地址   （待验证）
+
+  SPI_ENABLE_REORDER(SPI1);               // CNTRL.19=1    //启用重排序
+
+
+
+ static __inline void spiSendWord(u32 ulData, u32 ucLength)
+ 
+  SPI_SET_TX_BIT_LEN(SPI1, ucLength);     // CNTRL.3-7 =ucLength  // 传输位长度
+  SPI_WRITE_TX0(SPI1, ulData);               // TX= ulData    //把要发送的数据放到发送寄存器                 
+  SPI_SET_GO(SPI1);                               // CNTRL.0=1    //启动数据传输
+  while(SPI_IS_BUSY(SPI1) != 0);              // 读取CNTRL.0， 如果为1，则继续等待直到为0
+
+  
+void adpcmDataInit()
+{
+  adpcm_step_size_index_L_decode = 0;
+  adpcm_step_size_index_R_decode = 0;
+  pre_Rdata_decode = 0;
+  pre_Ldata_decode = 0;
+  adpcm_step_size_index_L_encode = 0;
+  adpcm_step_size_index_R_encode = 0;
+  pre_Rdata_encode = 0;
+  pre_Ldata_encode = 0;
+  recode_index = 0;
+  flash_write_triggle = 0;
+  chuck_index = 0;
+  block_sample_index = 0;
+}
+
+
+================
+
+static s32 adpcm_step_size_index_L_encode = 0;
+static s32 adpcm_step_size_index_R_encode = 0;
+static s32 adpcm_step_size_index_L_decode = 0;
+static s32 adpcm_step_size_index_R_decode = 0;
+
+
+#define predictor_L    (adpcm_step_size_index_L_decode)
+#define predictor_R    (adpcm_step_size_index_R_decode)
+#define L_sample0      adpcm_step_size_index_L_encode
+#define R_sample0      adpcm_step_size_index_R_encode
+
+
+
+======================================================
+
+
+
+--文件00（pairing）：   
+
+pcm:  
+  文件大小： 20878H + 7   == 2087fH    --ok  
+  采样率:      5dc0H = 24k,   
+  传送速率： 17700H = 96K 
+  通道数：  2
+  每样本的数据位数：  16 bit
+  数据块大小： 4 byte  ( 左声道低字节+ 左声道高字节+ 右声道低字节+  右声道高字节 )
+  语音数据长度:  20854H + 2bH =  2087fH  --ok
+  格式类别： 0001H  --> pcm格式
+
+adpcm:  
+  文件大小：      8056H + 7  = 805dH      --ok
+  语音数据长度:  8000H + 5dH = 805dH     --ok
+   
+
+
+---文件01（powerdown）：   
+
+pcm: 
+  文件大小：      21f16H +7  = 21f1d         --ok
+  语音数据长度:  21630H + 2bH = 2165b    --err
+
+adpcm:  
+  文件大小：      8056H +7  = 805dH      --ok
+  语音数据长度:  8000 + 5dH = 805dH    --ok
+
+
+---文件49（pairing）：   
+
+pcm:  
+  文件大小：3edbcH +7 = 3edc3H    --ok
+  语音数据长度: 3ed98H + 2bH = 3edc3H     --ok
+
+adpcm:  
+  文件大小：      f856H +7=  f85dH     --ok
+  语音数据长度:  f800H + 5dH  = f85dH  --ok
+
+
+
+
+
+
+
+==================
+
+
+文件头 
+00H 4 char "RIFF"标志 
+04H 4 long int 文件长度 
+08H 4 char "WAVE"标志 
+0CH 4 char "fmt"标志 
+10H 4 过渡字节（不定）  （我的理解 --应是fmt块的长度 这里是10H，即16byte）
+14H 2 int 格式类别（10H为PCM形式的声音数据) 
+16H 2 int 通道数，单声道为1，双声道为2 
+ 18H 2 int 采样率（每秒样本数），表示每个通道的播放速度， 
+1CH 4 long int 波形音频数据传送速率，其值为通道数×每秒数据位数×每样 
+                     本的数据位数／8。播放软件利用此值可以估计缓冲区的大小。 
+20H 2 int 数据块的调整数（按字节算的），其值为通道数×每样本的数据位       （样本字节数）
+             值／8。播放软件需要一次处理多个该值大小的字节数据，以便将其 
+             值用于缓冲区的调整。 
+22H 2 　 每样本的数据位数，表示每个声道中各个样本的数据位数。如果有多 
+           个声道，对每个声道而言，样本大小都一样。 
+24H 4 char 数据标记符＂data＂ 
+28H 4 long int 语音数据的长度 
+
+　　PCM数据的存放方式： 
+
+　 样本1 样本2 
+ 8位单声道 0声道 0声道 
+8位立体声 0声道（左） 1声道（右） 0声道（左） 1声道（右） 
+16位单声道 0声道低字节 0声道高字节 0声道低字节 0声道高字节 
+16位立体声 0声道（左）低字节 0声道（左）高字节 1声道（右）低字节 1声道（右）高字节
+
+ 　WAVE文件的每个样本值包含在一个整数i中，i的长度为容纳指定样本长度所需 
+的最小字节数。首先存储低有效字节，表示样本幅度的位放在i的高有效位上， 
+剩下的位置为0，这样8位和16位的PCM波形样本的数据格式如下所示。 　 
+
+样本大小 数据格式 最大值 最小值 
+8位PCM unsigned int 225 0 
+ 16位PCM int 32767
+
+---
+
+ 8KHz 采样、16 比特量化的线性PCM 语音信号的WAVE 文件头格式表（共44 字节）
+
+ 偏移地址 字节数 数据类型 内容 文件头定义为
+ 00H 4 char "RIFF" char riff_id[4]="RIFF"
+ 04H 4 long int 文件总长-8 long int size0=文总长-8
+ 08H 8 char "WAVEfmt " char wave_fmt[8]
+ 10H 4 long int 10 00 00 00H(PCM) long int size1=0x10
+ 14H 2 int 01 00H int fmttag=0x01
+ 16H 2 int int channel=1 或2
+ 18H 4 long int 采样率 long int samplespersec
+ 1CH 4 long int 每秒播放字节数 long int bytepersec
+
+ 20H 2 int 采样一次占字节数 int blockalign=声道数*量化数/8
+ 22H 2 int 量化数 int bitpersamples=8 或16
+ 24H 4 char "data" char data_id="data"
+
+ 28H 4 long int 采样数据字节数 long int size2=文长-44
+ 2CH 到文尾 char 采样数据
+
+
+---
+
+ADPCM 语音编码后的WAVE 文件头格式表（共90 字节）
+ 偏移地址 字节数 数据类型 内容 文件头定义为
+
+00H 4 char "RIFF" char riff_id[4]="RIFF"
+ 04H 4 long int 文件总长-8 long int size0=文总长-8
+ 08H 8 char "WAVEfmt " char wave_fmt[8]
+ 10H 4 long int 32000000H(ADPCM) long int size1=0x32
+
+ 14H 2 int 02 00H int fmttag=0x02
+ 16H 2 int 声道数 int channel=1 或2
+ 18H 4 long int 采样率 long int samplespersec
+ 1CH 4 long int 每秒播放字节数 long int bytepersec
+
+ 20H 2 int 采样一次占字节数 int blockalign=声道数*量化数/8
+ 22H 2 int 量化数 int bitpersamples=4
+
+ 24H 34 char 固定字节 char temp1
+ 46H 4 char "fact" char wave_fact="fact"
+ 4AH 8 char 0400000004930600H 定 char temp2
+ 52H 4 char "data" char wave_data="data"
+ 56H 4 long int 采样数据字节数 lont int size2=文长-90
+ 5AH 到文尾 采样数据
+
+
+---
+
+PCM是脉冲编码调制的意思。
+AD是自适应增量的意思。
+ 
+严格说来，ADPCM不是压缩方法。他的主要思想是，用差值替代绝对值。举个例子，全班同学平均身高 
+175CM：其中，我的身高170CM，这就是PCM
+
+方法；我的身高和平均值相比为-5cm，这就是DPCM
+
+我的身高跟前一位同学相比为-10CM，前一位同学有多高我不知道他多高，你问他，这是ADPCM
+。比方不是太准确，大概就是这个意思。
+
+在大多数情况下，数据值与平均值相差不大，所以用差值替代绝对值可以节省空间。
+
+
+
+
+=============================
+
+http://blog.sina.com.cn/s/blog_56e19aa70101arj4.html
+
+ ADPCM分为Microsoft ADPCM和IMA ADPCM两种数据格式，如果应用到STM32中，建议大家使用IMA ADPCM格式来编码和解码，这种格式方便C语言编程，算法工作量比较小。Microsoft ADPCM解码算法用STM32容易实现，但是编码算法需要耗费的系统资源比较大，影响实时语音数据的传输
+
+
+
+=======================================
+
+
+把苹果里aud格式声音文件转换成Android平台用的是amr格式的声音文件
+
+aud文件就是没有文件头的amr文件。所以将aud文件前面加上6个字节的文件头就可以了。
+
+ 方法如下：
+
+使用notepad++软件新建一文本文件head.txt，内容只有下面6个字节
+#!AMR（回车）
+ 然后菜单，编辑，档案格式转换，转换为UNIX格式。 然后保存
+
+然后用cmd命令：
+copy head.txt/b + xxxx.aud/b result.amr
+
+

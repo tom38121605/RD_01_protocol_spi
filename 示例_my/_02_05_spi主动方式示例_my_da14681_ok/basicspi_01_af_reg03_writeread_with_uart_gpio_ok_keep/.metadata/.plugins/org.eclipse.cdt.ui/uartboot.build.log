@@ -1,0 +1,21 @@
+16:42:44 **** Build of configuration Release for project uartboot ****
+make --silent all 
+Building file: F:/Awork_BLE5_DA14681/20170614_da_sdk/DA1468x_SDK_BTLE_v_1.0.8.1050.1/sdk/bsp/peripherals/src/hw_gpio.c
+Invoking: Cross ARM C Compiler
+Finished building: F:/Awork_BLE5_DA14681/20170614_da_sdk/DA1468x_SDK_BTLE_v_1.0.8.1050.1/sdk/bsp/peripherals/src/hw_gpio.c
+ 
+Building target: uartboot.elf
+Invoking: Cross ARM C Linker
+Finished building target: uartboot.elf
+ 
+Invoking: Cross ARM GNU Create Flash Image
+Finished building: uartboot.bin
+ 
+Invoking: Cross ARM GNU Print Size
+   text	   data	    bss	    dec	    hex	filename
+  15612	    420	  66080	  82112	  140c0	uartboot.elf
+Finished building: uartboot.siz
+ 
+
+16:42:50 Build Finished (took 5s.254ms)
+

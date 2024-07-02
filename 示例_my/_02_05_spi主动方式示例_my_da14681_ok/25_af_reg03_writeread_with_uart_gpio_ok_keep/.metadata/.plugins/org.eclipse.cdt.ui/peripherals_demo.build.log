@@ -1,0 +1,37 @@
+15:10:35 **** Incremental Build of configuration DA14681-01-Release_QSPI for project peripherals_demo ****
+make --silent pre-build main-build 
+Generate linker scripts.
+ 
+Building file: ../app/main_task.c
+Invoking: Cross ARM C Compiler
+../app/main_task.c: In function 'main_task_func':
+../app/main_task.c:81:18: warning: unused variable 'i' [-Wunused-variable]
+         uint32_t i;
+                  ^
+../app/main_task.c:80:17: warning: unused variable 'task_h' [-Wunused-variable]
+         OS_TASK task_h;
+                 ^
+../app/main_task.c:79:14: warning: unused variable 's' [-Wunused-variable]
+         char s[64];
+              ^
+../app/main_task.c: In function 'dwt_writetodevice':
+../app/main_task.c:249:5: warning: implicit declaration of function 'ad_spi_transact_write' [-Wimplicit-function-declaration]
+     ad_spi_transact_write(dev, header, cnt, buffer, length);
+     ^
+Finished building: ../app/main_task.c
+ 
+Building target: peripherals_demo.elf
+Invoking: Cross ARM C Linker
+Finished building target: peripherals_demo.elf
+ 
+Invoking: Cross ARM GNU Create Flash Image
+Finished building: peripherals_demo.bin
+ 
+Invoking: Cross ARM GNU Print Size
+   text	   data	    bss	    dec	    hex	filename
+  46844	    288	   5700	  52832	   ce60	peripherals_demo.elf
+Finished building: peripherals_demo.siz
+ 
+
+15:10:57 Build Finished (took 21s.693ms)
+

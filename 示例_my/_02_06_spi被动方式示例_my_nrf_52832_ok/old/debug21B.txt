@@ -1,0 +1,118 @@
+
+
+
+
+-----------2.1.3 Order of Leads
+
+SCL
+GND
+SDA
+NC/+5V
+MISO
+
+NC/+5V
+SCLK
+MOSI
+SS
+GND
+
+2.1.4 Ground
+GND (Pin 2): 
+GND (Pin 10):
+
+
+
+====================
+
+typedef struct {                                  
+  __I  uint32_t               RESERVED0[9];
+  __O  uint32_t             TASKS_ACQUIRE;             //Acquire SPI semaphore    
+  __O  uint32_t             TASKS_RELEASE;              //Release SPI semaphore, enabling the SPI slave to acquire it   
+  __I  uint32_t               RESERVED1[54];
+  __IO uint32_t              EVENTS_END;                      
+  __I  uint32_t               RESERVED2[2];
+  __IO uint32_t             EVENTS_ENDRX;                     
+  __I  uint32_t              RESERVED3[5];
+  __IO uint32_t             EVENTS_ACQUIRED;                 
+  __I  uint32_t              RESERVED4[53];
+  __IO uint32_t             SHORTS;                           
+  __I  uint32_t              RESERVED5[64];
+  __IO uint32_t            INTENSET;                      
+  __IO uint32_t            INTENCLR;                      
+  __I  uint32_t             RESERVED6[61];
+  __I  uint32_t             SEMSTAT;                        
+  __I  uint32_t             RESERVED7[15];
+  __IO uint32_t           STATUS;                       
+  __I  uint32_t             RESERVED8[47];
+  __IO uint32_t            ENABLE;                          
+  __I  uint32_t             RESERVED9;
+  SPIS_PSEL_Type       PSEL;                            
+  __I  uint32_t             RESERVED10[7];
+  SPIS_RXD_Type       RXD;                             
+  __I  uint32_t             RESERVED11;
+  SPIS_TXD_Type       TXD;                              
+  __I  uint32_t            RESERVED12;
+  __IO uint32_t         CONFIG;                        
+  __I  uint32_t           RESERVED13;
+  __IO uint32_t         DEF;                            
+  __I  uint32_t          RESERVED14[24];
+  __IO uint32_t         ORC;                           
+} NRF_SPIS_Type;
+
+
+=================================================
+
+
+#define NRF_DRV_SPIS_DEFAULT_CONFIG                                 
+                                                                                           
+    .sck_pin      = 0xff,                                                                      // 3 
+    .mosi_pin     =  0xff,                                                                    // 4                  
+    .miso_pin     =  0xff,                                                                    //  28                      
+    .csn_pin      =  0xff,                                                                     // 29                
+       
+    .miso_drive   = NRF_DRV_SPIS_DEFAULT_MISO_DRIVE,                 //0 -- S0S1 标准驱动
+    .csn_pullup   = NRF_DRV_SPIS_DEFAULT_CSN_PULLUP,                  //0 -- csn nopull
+       
+    .orc          =  0xff,                                                                       // 0xff   -- 假数据                               
+    .def          = 0xff,                                                                        // 0xff   --待理解
+                                          
+    .mode         = (nrf_drv_spis_mode_t)SPIS_DEFAULT_MODE,             //0 --mode0
+    .bit_order    = (nrf_drv_spis_endian_t)SPIS_DEFAULT_BIT_ORDER,     //0  -- MSB
+    .irq_priority = SPIS_DEFAULT_CONFIG_IRQ_PRIORITY,                     //6           
+ 
+
+spis = NRF_DRV_SPIS_INSTANCE(SPIS_INSTANCE);     //SPIS_INSTANCE=1
+
+       .p_reg      =        NRF_SPIS1,        
+       .irq          =         SPIS1_IRQ ,             
+       .instance_id   =      SPIS1_INSTANCE_INDEX,     //0    
+ 
+
+
+=========================================================
+
+
+#define SPI1_TWI1_IRQHandler    SPIM1_SPIS1_TWIM1_TWIS1_SPI1_TWI1_IRQHandler
+
+#define SPIS1_IRQ_HANDLER    SPI1_TWI1_IRQHandler
+
+#define IRQ_HANDLER(1)  void SPIS1_IRQ_HANDLER(void)
+
+//#define SPIS1_ENABLED 1
+//#if SPIS1_ENABLED
+//    SPIS_IRQHANDLER_TEMPLATE(1)
+//#endif
+
+//#define SPIS_IRQHANDLER_TEMPLATE(1)                
+    IRQ_HANDLER(1)                                              
+    {                                                                     
+        spis_irq_handler(NRF_SPIS1, &m_cb[0]);         
+    }
+
+
+
+
+
+
+
+

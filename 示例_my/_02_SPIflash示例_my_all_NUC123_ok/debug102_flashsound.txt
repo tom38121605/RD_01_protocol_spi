@@ -1,0 +1,334 @@
+
+
+iputs("task--01.\r\n");  //--zz debug
+
+
+
+=============
+
+flow：
+
+spiFlashInit  --》  playMusic  --》adpcmDataInit  --》readWaveHeaderInfo --》 FLASH_PLAY_MUSIC   --》  I2S_IRQHandler --》 dealFlashEvent --》 playSFMusicEnd
+
+
+-------------------------------------------
+
+void spiFlashInit()
+
+  GPIO_SPI1_SS0_PC8();
+  GPIO_SPI1_CLK_PC9();
+  GPIO_SPI1_MOSI0_PC11();
+  GPIO_SPI1_MISO0_PC10();
+  SPI_SET_SS(SPI1, SPI_SS_LOW_TRIGGER, SPI_SW_SS);
+  SPI_SET_SS0(SPI1);
+  DrvSPI_Init(SPI1, SPI_MASTER, SPI_TYPE2, 32);
+  SPI_SET_MSB_FIRST(SPI1);   //MSB first
+  SPI_DISABLE_REORDER(SPI1);
+  SPI_ENABLE_BCN(SPI1); //Backward compatible
+  SPI_SET_DIVIDER(SPI1, 1); //SPIclk = 18 MHZ
+
+  spiFlashRead(0, sizeof(sflash_info_cache), (u8*)&sflash_info_cache );    //读取音乐文件的头部，看一共有几首音乐，及每首音乐在flash中的位置  //读count个数据存放到databuf
+
+  if(sflash_info_cache.falsh_sn != 0x4E534C47)     //如果序列号不是0x4E534C47，则文件格式错误，音乐段的数量清0
+    sflash_info_cache.info.count = 0;   
+
+  flash_music_id = getATask();
+  flash_mode = FLASH_CONFIG;            //清除flashmusic标志
+
+
+//从address地址开始读，读count个数据存放到databuf
+void spiFlashRead(u32 address, u32 count, u8* databuf )
+  
+  SF_CMD_READ(address);                 //发送寻址命令  
+
+  for( ; index < count; index++)        //连续读取count个数据
+    spiSendWord(0xff,8);       //读取8位数据
+    databuf[index] = SPI1->RX[0];
+  
+  SPI_CLR_SS0(SPI1);    //  SSR.0=0   //清除片选 
+
+
+---
+
+void playMusic(s32 index)
+{
+  u32 read_address = 0;
+  u32 v;
+  
+  flg_softmute=1;    
+    
+  flash_music_index = index;
+  if(flash_music_index >= sflash_info_cache.info.count)
+    return; 
+
+  ampMute();
+
+  flg_ampdown = 1;    //--zz
+  
+  sysDelayMs(20);
+
+  flash_mode = FLASH_CONFIG;
+  
+  ampSendCmd_38(MVOL,0);
+  adpcmDataInit();
+
+  read_address = sflash_info_cache.info.address[flash_music_index];                        //取得该音乐在flash中的地址
+  music_size = sflash_info_cache.info.address[flash_music_index+1] -read_address;   //取得该音乐的大小
+
+#if(ADPCM_FORMAT == MS_ADPCM)
+  readWaveHeaderInfo(read_address);
+
+  filter_bypass = TRUE;
+  adcKeySubHook = NULL;
+  unMute();
+  sysDelayMs(20);
+  flash_mode = FLASH_PLAY_MUSIC;       //置位播放flashmusic标志  （而不是播放linein，蓝牙）
+  
+  if(flg_ampdown == 1)    
+  {
+    flg_ampdown = 0;
+    iputs("amp on\r\n");
+    ampPowerUp();  
+  }
+  
+  logEvent((Log_Type)(Flash_audio_track1_started+flash_music_index));
+}
+
+---------
+
+void readWaveHeaderInfo(u32 start_address)
+ 
+  SF_CMD_READ(start_address);    //发送寄存器地址给flash，表示要从这里开始读数据了
+
+  for(i = 0; i < sizeof(file_head); i++)   //从flash中读取该首音乐的头数据，存放到file_head结构中    --46个字节
+    spiSendWord(0xff, 8);   //读取8位数据
+    ((u8*)&file_head)[i] = SPI1->RX[0];  
+  
+  samples_per_block = (file_head.data_block_size -14) +2;    //每个块里需要解压缩的数据的个数   --easy
+  //data_block_size = file_head.data_block_size;                      //这个变量没什么作用 （忽略）
+
+  for(i = 0; i < 20; i++) 
+    cofe_set[i] = file_head.cofe_sets[i];                                  //解压缩的第1个参数  -- 比较固定
+
+
+========
+
+
+void I2S_IRQHandler()
+  dealFlashEvent(&sum_LL, &sum_RL); 
+
+
+void dealFlashEvent(s32 *Ldata, s32 *Rdata)
+{
+  static u32 pre_freq = 0;
+  static s32 R_predata = 0,   L_predata = 0;
+
+#if(ADPCM_FORMAT == IMA_ADPCM)          //MS_ADPCM
+#else
+  if(flash_mode == FLASH_PLAY_MUSIC)
+  {
+    if( file_head.data_block_count > 0 )
+    {
+      if(pre_freq)    //单数次  -- 取上2次解压数据的平均值，来播放用
+      {
+        pre_freq = 0;
+        *Ldata = ((pre_Ldata_decode+L_predata) << 15);       // 旧的数据L_predata 第1次应为0
+        *Rdata = ((pre_Rdata_decode+R_predata) << 15);     // 旧的数据R_predata 第1次应为0
+      }
+      else  //偶数次  -- 播放本次解压的左右声道的数据
+      {
+        pre_freq = 1;
+        R_predata = pre_Rdata_decode;   //保存旧的数据， 没解码之前的第1次的数据应该是0
+        L_predata = pre_Ldata_decode;  
+
+        adpcmDecode();   //音乐解码，主要是要取得pre_Rdata_decode 和 pre_Ldata_decode;   （待理解）
+  
+        *Ldata = ((pre_Ldata_decode) << 16);
+        *Rdata = ((pre_Rdata_decode) << 16);
+      }
+    }
+
+    else   //结束播放
+      SPI_CLR_SS0(SPI1); 
+      *Ldata = 0;   *Rdata = 0;      
+      I2S_CLR_RXFIFO();                //CON.19=1   清空接收缓冲区
+      I2S_CLR_TXFIFO();                //CON.18=1   清空发送缓冲区
+
+      adcKeySubHook = playSFMusicEnd;      
+
+  }
+
+#endif
+
+}
+
+
+ //音乐解码，主要是要取得pre_Rdata_decode 和 pre_Ldata_decode;  
+void adpcmDecode()
+
+  static u32 L_delta, R_delta;
+  static s32 L_sample1, R_sample1;
+  static s16 L_cofe0, L_cofe1, R_cofe0, R_cofe1;
+  s8 code;
+
+  if(block_sample_index == 0)     // a new data block start
+  { 
+    ++block_sample_index;
+        
+    spiSendWord(0xff, 16);             //发送0xff  （应该为0x00ff）     
+    predictor_L = SPI1->RX[0];       //--第1次读取  --> predictor_L；   predictor_L是一个过渡变量
+
+    predictor_R = ((u32)predictor_L>>8)<<1;
+    predictor_L = ((u32)predictor_L & 0xff)<<1;
+    L_cofe0 = cofe_set[predictor_L];
+    L_cofe1 = cofe_set[predictor_L+1];
+    R_cofe0 = cofe_set[predictor_R];
+    R_cofe1 = cofe_set[predictor_R+1];
+
+    spiSendWord(0xff, 32);     //发送0xff  （应该为0x000000ff）  
+    L_delta = SPI1->RX[0];      //--第2次读取  -->  L_delta
+
+    R_delta = L_delta >> 16;
+    L_delta = L_delta & 0xffff;
+
+    spiSendWord(0xff, 32);     //发送0xff  （应该为0x000000ff） 
+    L_sample0 = SPI1->RX[0];     //--第3次读取  -->  L_sample0
+
+    R_sample0 = L_sample0 >> 16;
+    L_sample0 = (L_sample0 << 16)>>16;
+
+    spiSendWord(0xff, 32);      //发送0xff  （应该为0x000000ff）  
+    L_sample1 = SPI1->RX[0];     //--第4次读取  -->   L_sample1
+
+    R_sample1 = L_sample1 >> 16;
+    L_sample1 = (L_sample1 << 16)>>16;  
+    
+    pre_Ldata_decode = L_sample1;     // send L sample0
+    pre_Rdata_decode = R_sample1;    // send R sample0
+    
+  }
+  else if(block_sample_index == 1)
+  {  
+    ++block_sample_index;
+      
+    pre_Ldata_decode = L_sample0;
+    pre_Rdata_decode = R_sample0;    
+  }
+  else
+  {  
+    ++block_sample_index;
+    if(block_sample_index == samples_per_block)   //  判断该音乐block是否结束 （待理解）
+    {
+      block_sample_index = 0; 
+      //data_block_size--;                    //根据全部的data_block_size理解，这个data_block_size实际上没有任何用处，可忽略之
+      file_head.data_block_count--;  
+    }
+    spiSendWord(0xff, 8);         //读取8位数据
+    code = (s8)(SPI1->RX[0]);     //第5次+读取， 读取4+4位音乐数据
+    
+    /**** decode the left channel data ****/ 
+    pre_Ldata_decode = (L_sample0*L_cofe0 + L_sample1*L_cofe1) >>8;    //直接计算得出左通道初次数据
+    code=(code>>4);  //取高半字节
+
+    pre_Ldata_decode = pre_Ldata_decode + L_delta* code;       //再根据刚才读取的低位计算出左通道2次数据      
+                                                                                             //--为什么没考虑正负号  --应该把code.3作为符号位
+
+    if(pre_Ldata_decode > 32767)
+      pre_Ldata_decode = 32767;
+    else if(pre_Ldata_decode < -32767)
+      pre_Ldata_decode = -32767;
+
+    L_sample1 = L_sample0;
+    L_sample0 = (s16)pre_Ldata_decode;
+    L_delta = (L_delta*AdaptationTable[(u8)code>>4])>>8;
+
+    if(L_delta<16)
+      L_delta = 16;
+
+    if(L_delta > ((0x1<<14)-1))     //16383
+      L_delta = ((0x1<<14)-1);
+
+    
+    /**** decode the right channel data ****/
+    pre_Rdata_decode = (R_sample0*R_cofe0 + R_sample1*R_cofe1) >>8;
+    code = (  (   (s32)(s8)(code<<4)  ) >> 4  );   //取低半字节  （待验证）
+    pre_Rdata_decode = pre_Rdata_decode + R_delta*code;
+
+    if(pre_Rdata_decode > 32767)
+       pre_Rdata_decode = 32767;
+    else if(pre_Rdata_decode< -32767)
+      pre_Rdata_decode = -32767;
+
+    R_sample1 = R_sample0;
+    R_sample0 = pre_Rdata_decode;                                    //R_sample0是最新的数据
+    R_delta = (R_delta*AdaptationTable[code&0xf])>>8;  
+
+    if(R_delta<16)
+      R_delta = 16;
+
+    if(R_delta > ((0x1<<14)-1))    //16383
+      R_delta = ((0x1<<14)-1);
+    
+  }
+
+---
+   
+void playSFMusicEnd(void)
+{
+  
+  if(sflash_info_cache.info.count < 2)
+    return;
+
+  if(twsPaired()){
+    if(tws_out == 0)
+      ;//--ampSendCmd_38(MVOL,124-vol_0*4);
+  }
+  
+  if(flash_music_index == DD_SOUND && isBtStreaming())
+  {
+    ampMute();
+    //iputs("dd_mute09\r\n");    //--zz debug
+    amp_Mflag = 43;        
+
+    volume_back = volume_back&~0x80;
+    amp_volume = volume_back;
+    flash_mode = FLASH_RECODE_MUSIC;
+    
+    return;
+   }
+    
+  if( liocx == 0xccdd)
+    ampPowerDown();
+  
+//  if(flash_music_index == POWER_ON_SOUND)
+//    sysDelayMs(50);
+  
+  
+  filter_bypass = FALSE;
+  SPI_CLR_SS0(SPI1);
+
+  if(dev_state != DEV_TEST)
+  {
+    volume_back = volume_back&~0x80;
+    amp_volume = volume_back;
+      ampSetVolume(amp_volume);
+  }
+
+  flash_mode = FLASH_CONFIG;    //清除flashmusic标志
+
+//--L1:
+  logEvent((Log_Type)(Flash_audio_track1_finished+flash_music_index));
+  
+}
+
+
+  
+    
+
+    
+
+  
+   
+  
+
+   

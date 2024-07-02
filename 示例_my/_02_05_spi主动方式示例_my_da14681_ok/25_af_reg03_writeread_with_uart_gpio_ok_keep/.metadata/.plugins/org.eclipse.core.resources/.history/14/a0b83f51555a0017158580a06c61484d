@@ -1,0 +1,271 @@
+/**
+ ****************************************************************************************
+ *
+ * @file main_task.c
+ *
+ * @brief Main task of the peripherals demo application
+ *
+ * Copyright (C) 2015. Dialog Semiconductor, unpublished work. This computer
+ * program includes Confidential, Proprietary Information and is a Trade Secret of
+ * Dialog Semiconductor.  All use, disclosure, and/or reproduction is prohibited
+ * unless authorized in writing. All Rights Reserved.
+ *
+ * <black.orca.support@diasemi.com> and contributors.
+ *
+ ****************************************************************************************
+ */
+
+#include <string.h>
+#include <stdio.h>
+#include <osal.h>
+#include <resmgmt.h>
+#include "app/menu.h"
+#include "app/tasklist.h"
+#include "platform_devices.h"
+#include "serial_console.h"
+#include "osal.h"
+
+//#include "common.h"
+//#include "at45db011d.h"
+
+spi_device dev;
+
+static inline void readline(char *buf, size_t size)
+{
+        int c;
+
+        do {
+                c = getchar();
+                *buf = c;
+                buf++;
+                size--;
+        } while (c != '\n' && c != '\r' && size > 1); // wait for CR/LF or reserve 1 char for \0
+
+        /* make sure it's null-terminated */
+        *buf = '\0';
+}
+
+/*void decaspi_task_func(void *param)
+{
+        int u2;
+
+        for(;;)
+        {
+            printf( "12345" );   //--debuglog
+            //vTaskDelay( 2000 / portTICK_RATE_MS );
+
+            for( u2 = 0; u2 < 1000; u2++ )
+            {
+                 ;
+            }
+        }
+}
+*/
+
+void task_ad_spi_at45_worker_func(const struct task_item *task)
+{
+//        /*
+//         * Handle to flash device.
+//         */
+//        spi_device dev;
+//        uint8_t sum;
+//        uint8_t prev_sum = 0;
+//        int i, j;
+//        uint8_t buf[10]={0};
+//
+//        /*
+//         * Open device connected to SPI bus.
+//         * This will not start any transmission yet.
+//         */
+//        dev = ad_spi_open(AT45DB011D);
+//
+//        for (;;) {
+//                //OS_DELAY(2000);
+//                OS_DELAY(2000);
+//
+//                printf( "12345" );   //--debuglog
+//
+//                sum = 0;
+//                /*
+//                 * Calculate checksum of 1000 bytes starting from address 0x8000.
+//                 * This could be done in one call to at45db_read but this would required to have
+//                 * 1000 bytes in buffer. For purpose of demonstration only 10 bytes buffer will
+//                 * be used.
+//                 * To have accurate checksum flash memory will be locked for all read transactions.
+//                 */
+//                ad_spi_device_acquire(dev);
+//
+//                for (i = 0; i < 1000; i += sizeof(buf)) {
+//                        /*
+//                         * Read some part of memory, and calculate checksum.
+//                         */
+//                        at45db_read(dev, 0x8000 + i, buf, sizeof(buf));
+//                        for (j = 0; j < sizeof(buf); ++j) {
+//                                sum += buf[j];
+//                        }
+//                }
+//
+//                /*
+//                 * Device access finished, let other task use it.
+//                 */
+//                ad_spi_device_release(dev);
+//
+//                /*
+//                 * If something changed in memory from last checksum computation notify user
+//                 * and update checksum.
+//                 */
+//                if (sum != prev_sum) {
+//                        //uart_printfln_s("Memory updated, checksum now 0x%X", sum);
+//                        printf("Memory updated, checksum now 0x%X", sum);
+//                        prev_sum = sum;
+//                }
+//        }
+//
+//        /*
+//         * This task will not use flash for time being, close it.
+//         */
+//        ad_spi_close(dev);
+}
+
+
+void main_task_func(void *param)
+{
+        char s[64];
+        OS_TASK task_h;
+        uint32_t i;
+        uint8_t ibuf={0};
+
+        resource_init();
+
+        console_init(SERIAL1, 256);
+
+//--test decaspi
+        //OS_TASK_CREATE("decaspi", decaspi_task_func, NULL, 268, 2, task_h);
+        //OS_TASK_CREATE("decaspi", task_ad_spi_at45_worker_func, NULL, 768, 2, task_h);
+
+        app_tasklist_create();
+
+        //--test decaspi
+        hw_gpio_configure_pin(3, 6, HW_GPIO_MODE_OUTPUT, HW_GPIO_FUNC_SPI_EN, 1);
+        hw_gpio_configure_pin(3, 7, HW_GPIO_MODE_OUTPUT, HW_GPIO_FUNC_SPI_DO, 0);
+        hw_gpio_configure_pin(4, 0, HW_GPIO_MODE_OUTPUT, HW_GPIO_FUNC_SPI_DI, 0);
+        hw_gpio_configure_pin(4, 1, HW_GPIO_MODE_OUTPUT, HW_GPIO_FUNC_SPI_CLK, 0);
+
+        dev = ad_spi_open(DW1000SPI);  //AT45DB011D
+
+
+
+        printf( "\r\n12345\r\n" );   //--debuglog
+
+
+        for(;;)
+        {
+                //app_menu_draw();
+                //readline(s, sizeof(s));
+                //app_menu_parse_selection(s);
+
+
+                dwt_readfromdevice(0x00,0,4,ibuf);
+
+                printf( "\r\nabcde\r\n" );   //--debuglog
+
+                //vTaskDelay( 10 / portTICK_RATE_MS );
+                //OS_DELAY(1);
+
+                for( i = 0; i < 1000000; i++ )
+                {
+                   ;
+                }
+        }
+
+}
+
+
+
+//================================================================================================
+void dwt_readfromdevice( uint16_t recordNumber, uint16_t index, uint32_t length, uint8_t *buffer );
+int readfromspi(uint16_t headerLength, const uint8_t *headerBuffer, uint32_t readlength, uint8_t *readBuffer);
+
+void dwt_readfromdevice( uint16_t recordNumber, uint16_t index, uint32_t length, uint8_t *buffer )
+{
+    uint8_t header[3] ;
+    int cnt = 0;
+
+    // get header
+    if (index == 0)
+    {
+        header[cnt++] = (uint8_t) recordNumber ;
+    }
+    else
+    {
+        header[cnt++] = (uint8_t)(0x40 | recordNumber) ;
+
+        if (index <= 127)
+        {
+            header[cnt++] = (uint8_t) index ;
+        }
+        else
+        {
+            header[cnt++] = 0x80 | (uint8_t)(index) ;
+            header[cnt++] =  (uint8_t) (index >> 7) ;
+        }
+    }
+
+    readfromspi(cnt, header, length, buffer);
+}
+
+int readfromspi(uint16_t headerLength, const uint8_t *headerBuffer, uint32_t readlength, uint8_t *readBuffer)
+{
+        const uint8_t LEN1 =20;
+        uint8_t idatabuf[LEN1]={0};
+        uint8_t itempbuf[LEN1]={0};
+
+        uint8_t * p1;
+        uint32_t idatalength=0;
+
+        memset(idatabuf, 0, LEN1);
+        memset(itempbuf, 0, LEN1);
+
+
+        p1=idatabuf;
+        memcpy(p1,headerBuffer, headerLength);
+
+        p1 += headerLength;
+        memset(p1,0x00,readlength);
+
+        idatalength= headerLength + readlength;
+
+
+//      //decaIrqStatus_t  stat ;
+//      //stat = decamutexon() ;
+
+//        spi_xfer_done = false;
+//  nrf_drv_spi_transfer(&spi, idatabuf, idatalength, itempbuf, idatalength);
+//        while(!spi_xfer_done) ;
+
+        //.......  ´ýÍê³É spi½»»»
+
+
+        p1=itempbuf + headerLength;
+
+
+//      //test
+//      if (p1[0]!=0xff)
+//      {
+//              p1= p1+1;
+//      }
+//      else
+//              p1=itempbuf+1;
+
+
+        memcpy(readBuffer, p1, readlength);
+
+        //decamutexoff(stat) ;
+
+        return 0;
+}
+
+
+
+
+
